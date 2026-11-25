@@ -11,6 +11,8 @@ const {
   pobierzOceny,
   zbudujTablice,
   parsujUwagi,
+  czytajTabeleOcen,
+  scalSrednie,
 } = require('../lib/librus');
 
 const { HTML_OCENY, HTML_INFO, HTML_UWAGI, atrapaLibrusa } = require('./fixtures/atrapa');
@@ -151,4 +153,22 @@ test('logowanie i pobranie ocen (pełny przebieg)', async () => {
 test('złe hasło i przerwa techniczna dają czytelny błąd', async () => {
   await assert.rejects(pobierzOceny('rodzic', 'zle', atrapaLibrusa()), /logowanie nieudane – Nieprawidłowy login lub hasło/);
   await assert.rejects(pobierzOceny('rodzic', 'tajne', atrapaLibrusa({ przerwa: true })), /przerwa techniczna – Prace serwisowe/);
+});
+
+test('średnie: najpierw z kolumn Librusa (Śr.I / Śr.II / Śr.R), reszta wyliczona z wag', () => {
+  // Matematyka: szkoła pokazuje Śr.I i Śr.R; w fixture Śr.I jest wyłączona (ikona) – podmieniamy na liczby
+  const html = HTML_OCENY.replace(
+    '<td><img class="tooltip helper-icon" src="/images/pomoc_ciemna.png" title="Podgląd średniej ocen został wyłączony przez administratora szkoły."></td>',
+    '<td class="center">4.25</td>',
+  ).replace(
+    /(<td>\s*<span class="grade-box"><a class="ocena" href="\/przegladaj_oceny\/szczegoly\/5007"[\s\S]*?<\/td>\s*<td class="center">) - (<\/td>\s*<td class="center"> - <\/td>\s*<td class="center">) - /,
+    '$1 - $2 4,40 ',
+  );
+  const { oceny, srednieLibrus } = czytajTabeleOcen(html);
+  assert.deepEqual(srednieLibrus, { Matematyka: { 1: 4.25, R: 4.4 } });
+  const srednie = scalSrednie(oceny, srednieLibrus);
+  assert.deepEqual(srednie.Matematyka, { 1: 4.25, 2: 4.5, R: 4.4 }); // Śr.II brak w Librusie → wyliczona
+  assert.deepEqual(srednie['Język polski'], { 2: 6, R: 6 });
+  // bez średnich w Librusie – wszystko wyliczone, rok: (5*3 + 2.75*2 + 4*2 + 4.5*1) / 8 = 4.13
+  assert.deepEqual(scalSrednie(parsujOceny(HTML_OCENY)).Matematyka, { 1: 4.07, 2: 4.5, R: 4.13 });
 });

@@ -1,0 +1,16 @@
+1.1.0 (2026-11-25):
+- New (optional): the last result is also stored in a global/flow context variable
+- Edit dialog and node status in English, help and README in English + Polish
+- New: grades page served by the node (path + password per node, e.g. /librus/john): class, subjects A–Z,
+  weighted average after the subject name, grades with date / category / weight on hover, terms and whole year,
+  mobile and dark mode
+- Averages taken from Librus (columns Śr.I / Śr.II / Śr.R); calculated from the Librus weights only where the
+  school hides them; new year average "R" and payload.srednieLibrus
+- Output fields and SMS templates otherwise unchanged
+- New modern edit dialog (sections, live summary, spinners, validation), palette category "AFYA",
+  Font Awesome icon, English UI with English + Polish help
+- Short, consistent node status (value · time)
+- MIT license, Node-RED >= 3.0, Node.js >= 18, unit tests (`npm test`)
+
+1.0.0:
+- first version: grades, teacher notes, SMS text, MQTT example

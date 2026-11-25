@@ -11,8 +11,21 @@ const { HTML_OCENY, HTML_UWAGI, atrapaLibrusa } = require('./fixtures/atrapa');
 function uruchomWezel({ login = 'rodzic', haslo = 'tajne', config = {} } = {}) {
   const userDir = fs.mkdtempSync(path.join(os.tmpdir(), 'afya-librus-'));
   let Konstruktor;
+  const kontekst = { global: new Map(), flow: new Map() };
+  const sklep = (m) => ({
+    get: (k, s) => m.get(`${s || 'default'}::${k}`),
+    set: (k, v, s) => m.set(`${s || 'default'}::${k}`, v),
+  });
   const RED = {
     settings: { userDir },
+    kontekst,
+    util: {
+      parseContextStore(key) {
+        const m = /^#:\((\S+?)\)::(.*)$/.exec(key);
+        return m ? { store: m[1], key: m[2] } : { key };
+      },
+      cloneMessage: (v) => (v === undefined ? v : structuredClone(v)),
+    },
     nodes: {
       createNode(node, cfg) {
         node.id = cfg.id;
@@ -23,6 +36,7 @@ function uruchomWezel({ login = 'rodzic', haslo = 'tajne', config = {} } = {}) {
         node.on = (zdarzenie, fn) => (node.handlers[zdarzenie] = fn);
         node.status = (s) => node.statusy.push(s);
         node.warn = (w) => node.ostrzezenia.push(w);
+        node.context = () => ({ global: sklep(kontekst.global), flow: sklep(kontekst.flow) });
       },
       registerType(nazwa, ctor) {
         assert.equal(nazwa, 'afya-librus');
@@ -34,7 +48,7 @@ function uruchomWezel({ login = 'rodzic', haslo = 'tajne', config = {} } = {}) {
   const node = new Konstruktor({ id: 'n1', ...config });
   node.wyslij = (msg) =>
     new Promise((resolve, reject) => node.handlers.input(msg, resolve, (err) => err && reject(err)));
-  return { node, userDir };
+  return { node, userDir, RED };
 }
 
 test('węzeł: pierwszy odczyt cichy, potem tylko nowe oceny; msg.test; zapis stanu', async (t) => {
@@ -144,4 +158,33 @@ test('węzeł: zestawienie ocen przedmiotu i uwagi nauczyciela', async (t) => {
     'Librus Kowalski Jaś: 5[2](2) z Matematyka (Kartkówka) | oceny: 5[2](2), 4+(1)',
   );
   assert.equal(msg.payload.tekst.split('\n').at(-1), 'Librus Kowalski Jaś: uwaga negatywna – Brak zadania domowego (Testowa Anna)');
+});
+
+test('węzeł: ostatni wynik w zmiennej kontekstu (global / flow / magazyn)', async (t) => {
+  const prawdziwyFetch = globalThis.fetch;
+  t.after(() => (globalThis.fetch = prawdziwyFetch));
+  globalThis.fetch = atrapaLibrusa().fetch;
+
+  // domyślnie global
+  let { node, RED } = uruchomWezel({ config: { variableName: 'librus_jas' } });
+  let msg = await node.wyslij({});
+  const zapisane = RED.kontekst.global.get('default::librus_jas');
+  assert.equal(zapisane.ok, true);
+  assert.equal(zapisane.oceny.length, msg.payload.oceny.length);
+  assert.notEqual(zapisane, msg.payload); // kopia, nie ta sama referencja
+
+  // flow + wybrany magazyn kontekstu
+  ({ node, RED } = uruchomWezel({ config: { variableName: '#:(plik)::librus', scope: 'flow' } }));
+  await node.wyslij({});
+  assert.equal(RED.kontekst.flow.get('plik::librus').ok, true);
+
+  // błąd też trafia do zmiennej (ok:false)
+  ({ node, RED } = uruchomWezel({ haslo: 'zle', config: { variableName: 'librus_blad' } }));
+  await node.wyslij({});
+  assert.equal(RED.kontekst.global.get('default::librus_blad').ok, false);
+
+  // bez nazwy zmiennej nic nie jest zapisywane
+  ({ node, RED } = uruchomWezel());
+  await node.wyslij({});
+  assert.equal(RED.kontekst.global.size + RED.kontekst.flow.size, 0);
 });

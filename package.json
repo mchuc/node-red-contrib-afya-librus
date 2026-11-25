@@ -1,15 +1,18 @@
 {
   "name": "node-red-contrib-afya-librus",
-  "version": "1.0.0",
-  "description": "Node-RED: oceny i uwagi z dziennika Librus Synergia – co nowego i za co. Gotowy tekst do SMS. Bez Home Assistanta.",
+  "version": "1.1.0",
+  "description": "Node-RED node for the Polish school register Librus Synergia: new grades and teacher notes, what they are for, ready-made SMS text. No Home Assistant needed.",
   "main": "afya-librus.js",
   "scripts": {
     "test": "node --test test/*.test.js"
   },
   "keywords": [
     "node-red",
+    "afya",
     "librus",
     "synergia",
+    "school",
+    "grades",
     "oceny",
     "uwagi",
     "dziennik",
@@ -33,12 +36,17 @@
     "lib/",
     "examples/",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "change.log"
   ],
-  "author": "mchuc <mchuc@afya.pl>",
+  "author": "Marcin Chuć <marcin@afya.pl> (https://github.com/mchuc)",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mchuc/node-red-contrib-afya-librus.git"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/mchuc/node-red-contrib-afya-librus/issues"
+  },
+  "homepage": "https://github.com/mchuc/node-red-contrib-afya-librus#readme"
 }

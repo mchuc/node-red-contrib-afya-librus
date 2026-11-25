@@ -1,7 +1,12 @@
+/**
+ * AFYA Librus – new grades and teacher notes from Librus Synergia, ready-made SMS text.
+ * (C) 2026 Marcin Chuć · MIT
+ */
 'use strict';
 const fs = require('fs');
 const path = require('path');
 const { pobierzOceny, tekstSms, DOMYSLNY_SZABLON, DOMYSLNY_SZABLON_UWAGI } = require('./lib/librus');
+const { zarejestrujStrone, normalizujSciezke } = require('./lib/strona');
 
 /** Najnowszy element wg daty (do msg.test – sprawdzenie SMS bez czekania na nowość). */
 function najnowszy(lista) {
@@ -32,15 +37,47 @@ module.exports = function (RED) {
     const szablonUwagi = config.szablonUwagi || DOMYSLNY_SZABLON_UWAGI;
     // Lista już widzianych ocen – przetrwa restart Node-RED, więc nie będzie duplikatów SMS
     const plikStanu = path.join(RED.settings.userDir || process.cwd(), 'afya-librus', `${node.id}.json`);
+    // Opcjonalnie: ostatni wynik także w zmiennej kontekstu (global/flow) – do odczytu z innych flow
+    const zakres = config.scope === 'flow' ? 'flow' : 'global';
+    const { key: zmienna, store: magazyn } = RED.util.parseContextStore(String(config.variableName || '').trim());
     let trwa = false;
+
+    // Strona z ocenami (np. /librus/jas) – ostatni udany odczyt + ewentualny błąd
+    const stronaWlaczona = !!config.strona;
+    const ostatni = { dane: null, czas: null, blad: null, czasBledu: null };
+    let zamknijStrone = null;
+    if (stronaWlaczona) {
+      const zapisany = (wczytajStan(plikStanu) || {}).ostatni;
+      if (zapisany && zapisany.dane) Object.assign(ostatni, { dane: zapisany.dane, czas: zapisany.czas });
+      const sciezka = normalizujSciezke(config.sciezka || 'librus');
+      try {
+        if (!sciezka) throw new Error(`invalid page path "${config.sciezka}"`);
+        zamknijStrone = zarejestrujStrone(RED, node, {
+          sciezka,
+          haslo: (node.credentials || {}).hasloStrony || '',
+          tytul: config.name || 'Librus – oceny',
+          stan: () => ostatni,
+        });
+        node.status({ fill: 'grey', shape: 'ring', text: `page ${sciezka}` });
+        if (!(node.credentials || {}).hasloStrony) node.warn(`Page ${sciezka} is off until a page password is set`);
+      } catch (err) {
+        node.status({ fill: 'red', shape: 'ring', text: `page: ${err.message}`.slice(0, 60) });
+        node.error(`Librus page: ${err.message}`);
+      }
+    }
+
+    node.on('close', (removed, done) => {
+      if (zamknijStrone) zamknijStrone();
+      done();
+    });
 
     node.on('input', async (msg, send, done) => {
       if (trwa) {
-        node.warn('Poprzednie sprawdzenie Librusa jeszcze trwa – pomijam');
+        node.warn('Previous Librus check is still running – skipped');
         return done();
       }
       trwa = true;
-      node.status({ fill: 'blue', shape: 'dot', text: 'sprawdzam…' });
+      node.status({ fill: 'blue', shape: 'dot', text: 'checking…' });
       const czas = new Date().toISOString();
 
       try {
@@ -70,7 +107,19 @@ module.exports = function (RED) {
           widzianeUwagi = [...znane];
         }
 
-        zapiszStan(plikStanu, { widziane: [...widziane], widzianeUwagi, aktualizacja: czas });
+        const doZapisu = { widziane: [...widziane], widzianeUwagi, aktualizacja: czas };
+        if (stronaWlaczona) {
+          ostatni.dane = {
+            uczen: dane.uczen,
+            klasa: dane.klasa,
+            oceny: dane.oceny,
+            srednie: dane.srednie,
+            srednieLibrus: dane.srednieLibrus,
+          };
+          ostatni.czas = czas;
+          doZapisu.ostatni = { dane: ostatni.dane, czas };
+        }
+        zapiszStan(plikStanu, doZapisu);
 
         nowe = nowe.map((o) => {
           const sr = dane.srednie[o.przedmiot] && dane.srednie[o.przedmiot][o.semestr];
@@ -93,6 +142,7 @@ module.exports = function (RED) {
           pierwszyOdczyt,
           oceny: dane.oceny,
           srednie: dane.srednie,
+          srednieLibrus: dane.srednieLibrus,
           tablica: dane.tablica,
         };
         if (dane.uwagi) {
@@ -107,16 +157,26 @@ module.exports = function (RED) {
             ? {
                 fill: 'yellow',
                 shape: 'dot',
-                text: `nowe oceny: ${nowe.length}${czytajUwagi ? `, uwagi: ${noweUwagi.length}` : ''} · ${godz}`,
+                text: `new grades: ${nowe.length}${czytajUwagi ? `, notes: ${noweUwagi.length}` : ''} · ${godz}`,
               }
-            : { fill: 'green', shape: 'dot', text: `ok, brak nowych · ${godz}` },
+            : { fill: 'green', shape: 'dot', text: `ok, nothing new · ${godz}` },
         );
       } catch (err) {
         msg.payload = { ok: false, czas, blad: err.message };
+        ostatni.blad = err.message;
+        ostatni.czasBledu = czas;
         node.status({ fill: 'red', shape: 'ring', text: err.message.slice(0, 60) });
         node.warn(err.message);
       } finally {
         trwa = false;
+      }
+
+      if (zmienna) {
+        try {
+          node.context()[zakres].set(zmienna, RED.util.cloneMessage(msg.payload), magazyn);
+        } catch (err) {
+          node.warn(`Cannot store ${zakres}.${zmienna}: ${err.message}`);
+        }
       }
 
       send(msg);
@@ -128,6 +188,7 @@ module.exports = function (RED) {
     credentials: {
       login: { type: 'text' },
       haslo: { type: 'password' },
+      hasloStrony: { type: 'password' },
     },
   });
 };
