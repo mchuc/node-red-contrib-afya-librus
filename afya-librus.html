@@ -1,0 +1,123 @@
+<script type="text/javascript">
+  RED.nodes.registerType('afya-librus', {
+    category: 'Afya',
+    color: '#C7E9C0',
+    defaults: {
+      name: { value: '' },
+      szablon: { value: '' },
+      bezPl: { value: false },
+      zTablica: { value: false },
+      uwagi: { value: false },
+      szablonUwagi: { value: '' },
+    },
+    credentials: {
+      login: { type: 'text' },
+      haslo: { type: 'password' },
+    },
+    inputs: 1,
+    outputs: 1,
+    icon: 'font-awesome/fa-graduation-cap',
+    paletteLabel: 'librus oceny',
+    label: function () {
+      return this.name || 'Librus – oceny';
+    },
+    inputLabels: 'uruchom sprawdzenie (np. inject co 1 h)',
+    outputLabels: 'msg.payload: { ok, nowe, tekst, oceny, … }',
+    oneditprepare: function () {
+      $('#node-input-uwagi')
+        .on('change', function () {
+          $('.afya-librus-uwagi').toggle(this.checked);
+        })
+        .trigger('change');
+    },
+  });
+</script>
+
+<script type="text/html" data-template-name="afya-librus">
+  <div class="form-row">
+    <label for="node-input-name"><i class="fa fa-tag"></i> Nazwa</label>
+    <input type="text" id="node-input-name" placeholder="np. Librus – Jaś" />
+  </div>
+  <div class="form-row">
+    <label for="node-input-login"><i class="fa fa-user"></i> Login</label>
+    <input type="text" id="node-input-login" placeholder="login rodzica lub ucznia" autocomplete="off" />
+  </div>
+  <div class="form-row">
+    <label for="node-input-haslo"><i class="fa fa-lock"></i> Hasło</label>
+    <input type="password" id="node-input-haslo" autocomplete="new-password" />
+  </div>
+  <div class="form-row">
+    <label for="node-input-szablon"><i class="fa fa-commenting"></i> Tekst SMS</label>
+    <input type="text" id="node-input-szablon" placeholder="Librus %uczen%: %zapis% z %przedmiot% (%kategoria%) %komentarz%" />
+  </div>
+  <div class="form-row">
+    <label>&nbsp;</label>
+    <input type="checkbox" id="node-input-bezPl" style="display:inline-block; width:auto; vertical-align:top;" />
+    <label for="node-input-bezPl" style="width:auto;">bez polskich znaków (dłuższy SMS: 160 zamiast 70 znaków)</label>
+  </div>
+  <div class="form-row">
+    <label>&nbsp;</label>
+    <input type="checkbox" id="node-input-zTablica" style="display:inline-block; width:auto; vertical-align:top;" />
+    <label for="node-input-zTablica" style="width:auto;">dopisz wszystkie oceny z przedmiotu, np. <code>| oceny: 5(1), 6(3), 4[1](2)</code></label>
+  </div>
+  <div class="form-row">
+    <label>&nbsp;</label>
+    <input type="checkbox" id="node-input-uwagi" style="display:inline-block; width:auto; vertical-align:top;" />
+    <label for="node-input-uwagi" style="width:auto;">odczytuj też uwagi nauczyciela</label>
+  </div>
+  <div class="form-row afya-librus-uwagi">
+    <label for="node-input-szablonUwagi"><i class="fa fa-exclamation-circle"></i> SMS – uwaga</label>
+    <input type="text" id="node-input-szablonUwagi" placeholder="Librus %uczen%: uwaga %rodzaj% – %tresc% (%nauczyciel%)" />
+  </div>
+  <div class="form-tips">
+    <b>Ocena:</b> <code>%zapis%</code> (np. <code>4[1](2)</code> = 4 po poprawie z 1, waga 2) <code>%ocena%</code>
+    <code>%przedmiot%</code> <code>%kategoria%</code> <code>%komentarz%</code> <code>%waga%</code> <code>%data%</code>
+    <code>%nauczyciel%</code> <code>%srednia%</code> <code>%tablica%</code> <code>%semestr%</code> <code>%uczen%</code><br />
+    <b>Uwaga:</b> <code>%tresc%</code> <code>%rodzaj%</code> <code>%kategoria%</code> <code>%nauczyciel%</code>
+    <code>%data%</code> <code>%uczen%</code>
+  </div>
+</script>
+
+<script type="text/html" data-help-name="afya-librus">
+  <p>Loguje się do dziennika Librus Synergia, czyta oceny i podaje, które są <b>nowe</b> i <b>za co</b>
+    (kategoria, komentarz, waga, nauczyciel). Nie wymaga Home Assistanta.</p>
+
+  <h3>Wejście</h3>
+  <p>Każda wiadomość uruchamia jedno sprawdzenie – podłącz <i>inject</i> powtarzany co 1 godzinę.</p>
+  <dl class="message-properties">
+    <dt class="optional">test <span class="property-type">boolean</span></dt>
+    <dd><code>true</code> – gdy nie ma nowości, najnowsza ocena (i uwaga) zostanie podana jako nowa (do sprawdzenia SMS).</dd>
+  </dl>
+
+  <h3>Wyjście</h3>
+  <dl class="message-properties">
+    <dt>payload.ok <span class="property-type">boolean</span></dt>
+    <dd><code>true</code> – odczyt udany, <code>false</code> – błąd (opis w <code>payload.blad</code>).</dd>
+    <dt>payload.nowe <span class="property-type">array</span></dt>
+    <dd>Oceny, których nie było przy poprzednim sprawdzeniu (z polem <code>srednia</code> przedmiotu).</dd>
+    <dt>payload.tekst <span class="property-type">string</span></dt>
+    <dd>Gotowa treść SMS – jedna linia na nową ocenę lub uwagę; pusty, gdy nic nowego.</dd>
+    <dt>payload.oceny <span class="property-type">array</span></dt>
+    <dd>Wszystkie oceny: <code>przedmiot, ocena, wartosc, kategoria, komentarz, data, nauczyciel, waga, liczy, semestr, typ, link, id</code>.
+      <code>typ</code>: <code>biezaca</code> lub <code>koncowa</code> (przewidywana / śródroczna / roczna).
+      <code>zapis</code> – jak w dzienniku: <code>5(3)</code>, <code>4[1](2)</code> (po poprawie z 1).
+      <code>przed</code> – ocena sprzed poprawy, <code>zastapiona</code> – stara, poprawiona ocena.</dd>
+    <dt>payload.tablica <span class="property-type">object</span></dt>
+    <dd>Wszystkie oceny bieżące przedmiotu w jednym napisie: <code>{ "Matematyka": { "1": "5(3), 3-(2), +, 4[1](2)" } }</code>.</dd>
+    <dt class="optional">payload.uwagi, payload.noweUwagi <span class="property-type">array</span></dt>
+    <dd>Tylko gdy włączone „odczytuj też uwagi”: <code>tresc, data, nauczyciel, rodzaj, kategoria, id</code>.</dd>
+    <dt>payload.srednie <span class="property-type">object</span></dt>
+    <dd>Średnia ważona ocen bieżących: <code>{ "Matematyka": { "1": 4.25, "2": 5 } }</code>.</dd>
+    <dt>payload.uczen, payload.klasa <span class="property-type">string</span></dt>
+    <dd>Dane ucznia z Librusa.</dd>
+    <dt>payload.pierwszyOdczyt <span class="property-type">boolean</span></dt>
+    <dd><code>true</code> przy pierwszym uruchomieniu – wtedy tylko zapamiętujemy oceny, <code>nowe</code> jest puste.</dd>
+  </dl>
+
+  <h3>Szczegóły</h3>
+  <p>Lista widzianych ocen jest zapisywana w <code>~/.node-red/afya-librus/</code>, więc restart Node-RED
+    nie powoduje duplikatów. Do bramki SMS przepuszczaj tylko wiadomości z niepustym <code>payload.tekst</code>
+    (np. węzłem <i>switch</i>, reguła „is not empty”).</p>
+  <p>Gotowy schemat z harmonogramem (7–15 co 45 min, 15–21 co godzinę, noc bez sprawdzeń) i wysyłką
+    do MQTT: <b>Menu → Import → Przykłady → node-red-contrib-afya-librus → librus-mqtt</b>.</p>
+</script>

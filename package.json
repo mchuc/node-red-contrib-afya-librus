@@ -1,0 +1,44 @@
+{
+  "name": "node-red-contrib-afya-librus",
+  "version": "1.0.0",
+  "description": "Node-RED: oceny i uwagi z dziennika Librus Synergia – co nowego i za co. Gotowy tekst do SMS. Bez Home Assistanta.",
+  "main": "afya-librus.js",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": [
+    "node-red",
+    "librus",
+    "synergia",
+    "oceny",
+    "uwagi",
+    "dziennik",
+    "sms"
+  ],
+  "node-red": {
+    "version": ">=3.0.0",
+    "nodes": {
+      "afya-librus": "afya-librus.js"
+    }
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0"
+  },
+  "files": [
+    "afya-librus.js",
+    "afya-librus.html",
+    "lib/",
+    "examples/",
+    "LICENSE",
+    "README.md"
+  ],
+  "author": "mchuc <mchuc@afya.pl>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mchuc/node-red-contrib-afya-librus.git"
+  }
+}
