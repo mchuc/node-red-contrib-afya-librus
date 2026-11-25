@@ -189,3 +189,54 @@ test('węzeł: strona pokazuje ostatni odczyt i pamięta go po restarcie', async
   assert.match(strona, /<b>Matematyka<\/b>/);
   await new Promise((resolve) => h.close(false, resolve));
 });
+
+test('token w linku: strona bez logowania, zły token odrzucony, „tylko link” bez hasła', async () => {
+  const RED = { httpNode: serwer() };
+  const stan = { dane: dane(), czas: '2026-11-25T09:45:00.000Z' };
+  const TOKEN = 'Abc_123-xyz';
+
+  // hasło + token
+  let zamknij = zarejestrujStrone(RED, wezel(), { sciezka: '/lustro', haslo: 'h', token: TOKEN, tytul: '', stan: () => stan });
+  let odp = await zadanie(RED.httpNode, 'get', '/lustro', { query: { token: TOKEN } });
+  assert.equal(odp.status, 200);
+  assert.match(odp.body, /<b>Matematyka<\/b>/);
+  assert.equal(odp.naglowki['Set-Cookie'], undefined); // token nie zakłada sesji
+  assert.doesNotMatch(odp.body, /Wyloguj/); // na lustrze nie ma się z czego wylogować
+  odp = await zadanie(RED.httpNode, 'get', '/lustro', { query: { token: 'zly' } });
+  assert.equal(odp.status, 401);
+  assert.match(odp.body, /Nieprawidłowy token/);
+  assert.match((await zadanie(RED.httpNode, 'get', '/lustro')).body, /type="password"/); // bez tokenu – logowanie
+  zamknij();
+
+  // tylko token (bez hasła): bez linku nie da się wejść, formularz nie działa
+  zamknij = zarejestrujStrone(RED, wezel(), { sciezka: '/lustro', token: TOKEN, stan: () => stan });
+  odp = await zadanie(RED.httpNode, 'get', '/lustro');
+  assert.equal(odp.status, 401);
+  assert.match(odp.body, /tylko z linku z tokenem/);
+  assert.equal((await zadanie(RED.httpNode, 'post', '/lustro', { body: { haslo: '' } })).status, 403);
+  assert.equal((await zadanie(RED.httpNode, 'get', '/lustro', { query: { token: TOKEN } })).status, 200);
+  zamknij();
+});
+
+test('własny tytuł strony: zakładka, nagłówek, logowanie', async () => {
+  const html = stronaOcen({ dane: dane(), czas: '2026-11-25T09:45:00.000Z' }, { tytul: 'Oceny Jasia' });
+  assert.match(html, /<title>Oceny Jasia<\/title>/);
+  assert.match(html, /<h1>Oceny Jasia<\/h1><div class="sub">Kowalski Jaś · Klasa 7 b/);
+  const bezTytulu = stronaOcen({ dane: dane(), czas: '2026-11-25T09:45:00.000Z' }, {});
+  assert.match(bezTytulu, /<h1>Kowalski Jaś<\/h1><div class="sub">Klasa 7 b/);
+
+  const RED = { httpNode: serwer() };
+  const zamknij = zarejestrujStrone(RED, wezel(), { sciezka: '/x', haslo: 'h', tytul: 'Oceny Jasia', stan: () => ({}) });
+  assert.match((await zadanie(RED.httpNode, 'get', '/x')).body, /<h1>Oceny Jasia<\/h1>/);
+  zamknij();
+});
+
+test('po 10 błędnych tokenach adres jest blokowany', async () => {
+  const RED = { httpNode: serwer() };
+  const zamknij = zarejestrujStrone(RED, wezel(), { sciezka: '/x', token: 'dobry', stan: () => ({ dane: dane() }) });
+  const proby = [];
+  for (let i = 0; i < 10; i++) proby.push(zadanie(RED.httpNode, 'get', '/x', { query: { token: 'zly' + i } }));
+  await Promise.all(proby);
+  assert.equal((await zadanie(RED.httpNode, 'get', '/x', { query: { token: 'dobry' } })).status, 429);
+  zamknij();
+});

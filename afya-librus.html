@@ -56,6 +56,7 @@
         variableName: { value: '', required: false },
         scope: { value: 'global' },
         strona: { value: false },
+        tytulStrony: { value: '' },
         sciezka: {
           value: 'librus',
           validate: function (v) {
@@ -67,6 +68,7 @@
         login: { type: 'text' },
         haslo: { type: 'password' },
         hasloStrony: { type: 'password' },
+        tokenStrony: { type: 'text' },
       },
       label: function () {
         return this.name || 'Librus – grades';
@@ -91,13 +93,33 @@
           const sciezka = String($('#node-input-sciezka').val() || '').trim().replace(/^\/+|\/+$/g, '');
           return location.origin + root + '/' + sciezka;
         };
+        const linkZTokenem = function () {
+          const token = String($('#node-input-tokenStrony').val() || '').trim();
+          return token ? adresStrony() + '?token=' + encodeURIComponent(token) : '';
+        };
         const odswiezStrone = function () {
           const wl = $('#node-input-strona').is(':checked');
           $('.afya-librus-page').toggle(wl);
           $('#afya-librus-url').text(adresStrony()).attr('href', adresStrony());
+          const link = linkZTokenem();
+          $('#afya-librus-token-link').text(link).attr('href', link);
+          $('.afya-librus-token-row').toggle(wl && !!link);
         };
         $('#node-input-strona').on('change', odswiezStrone);
-        $('#node-input-sciezka').on('change keyup', odswiezStrone);
+        $('#node-input-sciezka, #node-input-tokenStrony').on('change keyup', odswiezStrone);
+        $('#afya-librus-token-gen').on('click', function (e) {
+          e.preventDefault();
+          const bajty = new Uint8Array(24);
+          crypto.getRandomValues(bajty);
+          const token = btoa(String.fromCharCode.apply(null, bajty)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+          $('#node-input-tokenStrony').val(token).trigger('change');
+        });
+        $('#afya-librus-token-copy').on('click', function (e) {
+          e.preventDefault();
+          const link = linkZTokenem();
+          if (link && RED.clipboard && RED.clipboard.copyText) RED.clipboard.copyText(link, $(this), 'Link copied');
+          else if (link && navigator.clipboard) navigator.clipboard.writeText(link);
+        });
         odswiezStrone();
 
         const summary = function () {
@@ -109,7 +131,11 @@
           }
           if ($('#node-input-bezPl').is(':checked')) text += '<br>Polish letters are replaced (ą → a …).';
           if ($('#node-input-strona').is(':checked')) {
-            text += '<br>Grades page: <code>' + esc(adresStrony()) + '</code> (password protected).';
+            const zHaslem = !!$('#node-input-hasloStrony').val();
+            const zTokenem = !!String($('#node-input-tokenStrony').val() || '').trim();
+            text += '<br>Grades page: <code>' + esc(adresStrony()) + '</code> – ' +
+              (zHaslem && zTokenem ? 'password, or the link with the token'
+                : zHaslem ? 'password' : zTokenem ? 'only the link with the token' : '<b>off until a password or token is set</b>') + '.';
           }
           const key = plainKey(variable.typedInput('value'));
           text += '<br>' + (key
@@ -119,7 +145,7 @@
         };
         $('#node-input-szablon, #node-input-szablonUwagi').on('change keyup', summary);
         $('#node-input-zTablica, #node-input-uwagi, #node-input-bezPl, #node-input-strona').on('change', summary);
-        $('#node-input-sciezka').on('change keyup', summary);
+        $('#node-input-sciezka, #node-input-tokenStrony, #node-input-hasloStrony').on('change keyup', summary);
         variable.on('change', summary);
         summary();
       },
@@ -180,6 +206,10 @@
       <label for="node-input-strona">Show a web page with the grades (class, subjects A–Z, averages)</label>
     </div>
     <div class="form-row afya-librus-page">
+      <label for="node-input-tytulStrony"><i class="fa fa-header"></i> Page title</label>
+      <input type="text" id="node-input-tytulStrony" placeholder="e.g. John's grades (empty = student's name)" style="width: 65%;">
+    </div>
+    <div class="form-row afya-librus-page">
       <label for="node-input-sciezka"><i class="fa fa-link"></i> Page path</label>
       <input type="text" id="node-input-sciezka" placeholder="librus/john" style="width: 65%;">
     </div>
@@ -189,7 +219,16 @@
       <label for="node-input-hasloStrony"><i class="fa fa-key"></i> Page password</label>
       <input type="password" id="node-input-hasloStrony" autocomplete="new-password" style="width: 65%;">
     </div>
-    <div class="afya-hint afya-librus-page">Required – without it the page stays off. Stored as Node-RED credentials.</div>
+    <div class="afya-hint afya-librus-page">Login form, then the browser stays logged in for 30 days. Stored as Node-RED credentials.</div>
+    <div class="form-row afya-librus-page">
+      <label for="node-input-tokenStrony"><i class="fa fa-ticket"></i> Access token</label>
+      <input type="text" id="node-input-tokenStrony" placeholder="optional – link without logging in" autocomplete="off" style="width: calc(65% - 92px);">
+      <button type="button" id="afya-librus-token-gen" class="red-ui-button" style="margin-left: 4px;"><i class="fa fa-random"></i> Generate</button>
+    </div>
+    <div class="afya-hint afya-librus-page">For a smart mirror or a wall tablet: the link below opens the page without logging in.
+      Anyone with the link sees the grades – generate a new token to revoke it. Set a password, a token, or both.</div>
+    <div class="afya-hint afya-librus-token-row"><a id="afya-librus-token-link" target="_blank" rel="noopener" style="word-break: break-all;"></a>
+      <button type="button" id="afya-librus-token-copy" class="red-ui-button red-ui-button-small" style="margin-left: 6px;"><i class="fa fa-copy"></i> Copy</button></div>
 
     <div class="afya-section"><i class="fa fa-database"></i> Context variable</div>
     <div class="form-row">
@@ -251,9 +290,12 @@
     hover or tap a grade to see its date, category, weight and teacher. Tabs: term 1, term 2, whole year.
     The average is taken from Librus (columns Śr.I / Śr.II / Śr.R); when the school hides it, it is calculated
     from the Librus weights and marked with <code>*</code>.</p>
-  <p>The page needs the <i>page password</i> (login form, session cookie for 30 days). Each child gets its own
-    node, path and password, e.g. <code>librus/john</code> and <code>librus/anna</code>. The last result is kept,
-    so the page works right after a restart.</p>
+  <p>Access: the <i>page password</i> (login form, session cookie for 30 days) and/or the <i>access token</i> –
+    the link <code>…/librus/john?token=…</code> opens the page without logging in (smart mirror, wall tablet).
+    Without a password and a token the page stays off. <i>Page title</i> is shown in the header and the browser
+    tab (empty = student's name). Each child gets its own node, path and password/token, e.g.
+    <code>librus/john</code> and <code>librus/anna</code>. The last result is kept, so the page works right after
+    a restart.</p>
 
   <h3>Details</h3>
   <p>Seen grades are saved in <code>~/.node-red/afya-librus/</code>, so a restart does not cause duplicate SMS.
@@ -269,7 +311,8 @@
     <b>flow</b>.</p>
   <p><b>Strona z ocenami</b> – po włączeniu węzeł pokazuje stronę pod podaną ścieżką (np. <code>/librus/jas</code>):
     klasa, przedmioty alfabetycznie, średnia ważona z Librusa zaraz po nazwie i kolejne oceny (data po najechaniu).
-    Dostęp tylko po haśle strony; każde dziecko – osobny węzeł, ścieżka i hasło.</p>
+    Dostęp po haśle strony albo bez logowania z linku z tokenem (<code>?token=…</code>, np. na lustrze lub tablecie).
+    Własny tytuł strony w polu <i>Page title</i>. Każde dziecko – osobny węzeł, ścieżka i hasło/token.</p>
 
   <p><small>Marcin Chuć · MIT · unofficial, not affiliated with Librus</small></p>
 </script>

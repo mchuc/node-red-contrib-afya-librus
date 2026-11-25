@@ -52,14 +52,17 @@ module.exports = function (RED) {
       const sciezka = normalizujSciezke(config.sciezka || 'librus');
       try {
         if (!sciezka) throw new Error(`invalid page path "${config.sciezka}"`);
+        const { hasloStrony = '', tokenStrony = '' } = node.credentials || {};
         zamknijStrone = zarejestrujStrone(RED, node, {
           sciezka,
-          haslo: (node.credentials || {}).hasloStrony || '',
-          tytul: config.name || 'Librus – oceny',
+          haslo: hasloStrony,
+          token: String(tokenStrony).trim(),
+          tytul: String(config.tytulStrony || '').trim(),
+          nazwa: config.name || '',
           stan: () => ostatni,
         });
         node.status({ fill: 'grey', shape: 'ring', text: `page ${sciezka}` });
-        if (!(node.credentials || {}).hasloStrony) node.warn(`Page ${sciezka} is off until a page password is set`);
+        if (!hasloStrony && !tokenStrony) node.warn(`Page ${sciezka} is off until a page password or token is set`);
       } catch (err) {
         node.status({ fill: 'red', shape: 'ring', text: `page: ${err.message}`.slice(0, 60) });
         node.error(`Librus page: ${err.message}`);
@@ -189,6 +192,7 @@ module.exports = function (RED) {
       login: { type: 'text' },
       haslo: { type: 'password' },
       hasloStrony: { type: 'password' },
+      tokenStrony: { type: 'text' },
     },
   });
 };

@@ -1,3 +1,9 @@
+1.2.0 (2026-11-25):
+- Grades page: access token – the link ...?token=... opens the page without logging in (smart mirror,
+  wall tablet); "Generate" and "Copy" buttons in the edit dialog; the token works with or without a password
+- Grades page: own page title (header and browser tab; empty = student's name)
+- Wrong tokens count like wrong passwords (10 tries in 15 minutes, then the address is blocked for a while)
+
 1.1.0 (2026-11-25):
 - New (optional): the last result is also stored in a global/flow context variable
 - Edit dialog and node status in English, help and README in English + Polish

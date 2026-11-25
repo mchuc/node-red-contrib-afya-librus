@@ -53,7 +53,9 @@ Restart Node-RED. The node **librus grades** appears in the **AFYA** palette gro
 | Variable | Optional: the last `msg.payload` is also stored in a **global** (readable from any flow) or **flow** context variable, e.g. `global.get("librus_john")`. |
 | Show a web page with the grades | Turns on the grades page (see below). |
 | Page path | Address of the page, e.g. `librus/john` → `http://<node-red>:1880/librus/john`. One path per child. |
-| Page password | Password for the page. Required – without it the page stays off. Stored as credentials. |
+| Page title | Shown in the page header and the browser tab, e.g. `John's grades`. Empty = student's name. |
+| Page password | Password for the page (login form, 30-day session). Stored as credentials. |
+| Access token | Optional. The link `…/librus/john?token=…` opens the page **without logging in** – for a smart mirror or a wall tablet. *Generate* creates a random token, *Copy* copies the whole link. |
 
 Grade placeholders: `%zapis%` `%ocena%` `%przedmiot%` `%kategoria%` `%komentarz%` `%waga%` `%data%`
 `%nauczyciel%` `%srednia%` `%tablica%` `%semestr%` `%uczen%`.
@@ -88,8 +90,16 @@ The **average is taken from Librus** (columns Śr.I / Śr.II / Śr.R, so the sch
 settings apply). If the school hides the averages, it is calculated from the Librus weights (`+` = +0.5,
 `-` = −0.25, only grades with “Licz do średniej: tak”) and marked with `*`.
 
-Access needs the page password: a login form, then a session cookie (`HttpOnly`, `SameSite=Strict`) for
-30 days; changing the password logs everyone out, 10 wrong passwords in 15 minutes block the address for a while.
+Access – set a password, a token, or both (without either the page stays off):
+
+* **password** – a login form, then a session cookie (`HttpOnly`, `SameSite=Strict`) for 30 days; changing the
+  password logs everyone out,
+* **token** – the link `http://<node-red>:1880/librus/john?token=…` shows the page straight away, without logging
+  in, e.g. on a smart mirror or a tablet on the wall. Anyone with the link sees the grades, so keep it like a
+  password; to revoke it, generate a new token and deploy. The link ends up in the browser history and in proxy
+  logs – use a long, generated token.
+
+10 wrong passwords or tokens in 15 minutes block the address for a while.
 The page is served by Node-RED itself (under `httpNodeRoot`), so it is reachable wherever Node-RED is – put it
 behind HTTPS / VPN when you open it to the internet. The last result is stored in
 `~/.node-red/afya-librus/<node-id>.json`, so the page works right after a restart.
@@ -195,7 +205,9 @@ Potem zrestartuj Node-RED. Węzeł **librus grades** pojawi się w palecie, w gr
 | Variable | Opcjonalnie: ostatni `msg.payload` trafia też do zmiennej **global** (dostępna z każdego flow) lub **flow**, np. `global.get("librus_jas")`. |
 | Show a web page with the grades | Włącza stronę z ocenami (opis niżej). |
 | Page path | Adres strony, np. `librus/jas` → `http://<node-red>:1880/librus/jas`. Każde dziecko – osobna ścieżka. |
-| Page password | Hasło do strony. Wymagane – bez niego strona jest wyłączona. Zapisywane jako *credentials*. |
+| Page title | Tytuł w nagłówku strony i na karcie przeglądarki, np. `Oceny Jasia`. Puste = imię i nazwisko ucznia. |
+| Page password | Hasło do strony (formularz logowania, sesja na 30 dni). Zapisywane jako *credentials*. |
+| Access token | Opcjonalnie. Link `…/librus/jas?token=…` otwiera stronę **bez logowania** – na lustro albo tablet na ścianie. *Generate* tworzy losowy token, *Copy* kopiuje cały link. |
 
 Pola w szablonie oceny: `%zapis%` `%ocena%` `%przedmiot%` `%kategoria%` `%komentarz%` `%waga%`
 `%data%` `%nauczyciel%` `%srednia%` `%tablica%` `%semestr%` `%uczen%`.
@@ -265,8 +277,16 @@ Każdy węzeł może pokazywać własną stronę z ocenami – osobny węzeł, �
 Gdy szkoła ukrywa średnie, jest wyliczana z wag Librusa (`+` = +0,5, `-` = −0,25, tylko oceny z „Licz do
 średniej: tak”) i oznaczona `*`.
 
-Wejście tylko po haśle strony: formularz logowania, potem ciasteczko sesji (`HttpOnly`, `SameSite=Strict`)
-na 30 dni; zmiana hasła wylogowuje wszystkich, 10 błędnych haseł w 15 minut blokuje adres na chwilę. Stronę
+Dostęp – ustaw hasło, token albo oba (bez żadnego strona jest wyłączona):
+
+* **hasło** – formularz logowania, potem ciasteczko sesji (`HttpOnly`, `SameSite=Strict`) na 30 dni; zmiana hasła
+  wylogowuje wszystkich,
+* **token** – link `http://<node-red>:1880/librus/jas?token=…` pokazuje stronę od razu, bez logowania, np. na
+  lustrze albo tablecie na ścianie. Kto ma link, widzi oceny – traktuj go jak hasło; żeby go unieważnić,
+  wygeneruj nowy token i wdróż. Link zostaje w historii przeglądarki i w logach pośredników – używaj długiego,
+  wygenerowanego tokenu.
+
+10 błędnych haseł albo tokenów w 15 minut blokuje adres na chwilę. Stronę
 serwuje sam Node-RED, więc jest dostępna tam, gdzie Node-RED – wystawiając ją do internetu, użyj HTTPS / VPN.
 Ostatni wynik leży w `~/.node-red/afya-librus/<id-węzła>.json`, więc strona działa zaraz po restarcie.
 
