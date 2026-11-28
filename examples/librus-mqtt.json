@@ -3,7 +3,7 @@
     "id": "b7a1c0de00000001",
     "type": "comment",
     "name": "Librus → MQTT · 7–15 co 45 min · 15–21 co 1 h · noc 22–7 cisza",
-    "info": "## Harmonogram\n\n* **Zegar 1** – inject co 45 min; filtr przepuszcza go tylko między 7:00 a 15:00.\n* **Zegar 2** – inject co godzinę 15:00–21:00 (ostatnie sprawdzenie 21:00).\n* **22:00–7:00** – nic nie jest sprawdzane.\n\nGodziny liczone wg strefy czasowej serwera Node-RED (ustaw `TZ=Europe/Warsaw`).\n\n## MQTT\n\n| Temat | Kiedy | Treść |\n|---|---|---|\n| `librus/dane` (retain) | po każdym sprawdzeniu | cały wynik: `ok`, `nowe`, `oceny`, `tablica`, `uwagi`… albo `ok:false` + `blad` |\n| `librus/sms/json` | tylko gdy coś nowego | wariant A: `{ \"do\", \"tresc\", \"od\", \"flash\" }` |\n| `librus/sms/tekst` | tylko gdy coś nowego | wariant B: zwykły tekst SMS |\n\nZostaw wariant, którego używa Twoja bramka SMS, drugi możesz usunąć.\n\n## Do ustawienia\n\n1. Login i hasło w węźle **Librus – oceny**.\n2. Adres brokera w węzłach MQTT.\n3. Numer(y) i nadawcę w węźle **SMS jako JSON**.\n4. Kliknij **test SMS**, żeby od razu sprawdzić całą ścieżkę.",
+    "info": "## Harmonogram\n\n* **Zegar 1** – inject co 45 min; filtr przepuszcza go tylko między 7:00 a 15:00.\n* **Zegar 2** – inject co godzinę 15:00–21:00 (ostatnie sprawdzenie 21:00).\n* **22:00–7:00** – nic nie jest sprawdzane.\n\nGodziny liczone wg strefy czasowej serwera Node-RED (ustaw `TZ=Europe/Warsaw`).\n\n## MQTT\n\n| Temat | Kiedy | Treść |\n|---|---|---|\n| `afya/dane` (retain) | po każdym sprawdzeniu | cały wynik: `ok`, `nowe`, `oceny`, `tablica`, `uwagi`… albo `ok:false` + `blad` |\n| `afya/sms/json` | osobno: nowa ocena, nowa uwaga | wariant A: `{ \"do\", \"tresc\", \"od\", \"flash\" }` |\n| `afya/sms/tekst` | osobno: nowa ocena, nowa uwaga | wariant B: zwykły tekst SMS |\n\nZostaw wariant, którego używa Twoja bramka SMS, drugi możesz usunąć.\n\n**nowa ocena?** i **nowa uwaga?** sprawdzają osobno `payload.tekstOceny` i `payload.tekstUwagi` – ocena i uwaga idą osobnymi SMS-ami, każda według własnego szablonu w węźle.\n\n## Do ustawienia\n\n1. Login i hasło w węźle **Librus – oceny**.\n2. Adres brokera w węzłach MQTT.\n3. Numer(y) i nadawcę w węźle **SMS jako JSON**.\n4. Kliknij **test SMS**, żeby od razu sprawdzić całą ścieżkę.",
     "x": 290,
     "y": 40,
     "wires": []
@@ -20,7 +20,11 @@
     "topic": "",
     "x": 160,
     "y": 100,
-    "wires": [["b7a1c0de00000003"]]
+    "wires": [
+      [
+        "b7a1c0de00000003"
+      ]
+    ]
   },
   {
     "id": "b7a1c0de00000003",
@@ -35,7 +39,11 @@
     "libs": [],
     "x": 380,
     "y": 100,
-    "wires": [["b7a1c0de00000006"]]
+    "wires": [
+      [
+        "b7a1c0de00000006"
+      ]
+    ]
   },
   {
     "id": "b7a1c0de00000004",
@@ -49,13 +57,23 @@
     "topic": "",
     "x": 170,
     "y": 160,
-    "wires": [["b7a1c0de00000006"]]
+    "wires": [
+      [
+        "b7a1c0de00000006"
+      ]
+    ]
   },
   {
     "id": "b7a1c0de00000005",
     "type": "inject",
     "name": "test SMS",
-    "props": [{ "p": "test", "v": "true", "vt": "bool" }],
+    "props": [
+      {
+        "p": "test",
+        "v": "true",
+        "vt": "bool"
+      }
+    ],
     "repeat": "",
     "crontab": "",
     "once": false,
@@ -63,7 +81,11 @@
     "topic": "",
     "x": 140,
     "y": 220,
-    "wires": [["b7a1c0de00000006"]]
+    "wires": [
+      [
+        "b7a1c0de00000006"
+      ]
+    ]
   },
   {
     "id": "b7a1c0de00000006",
@@ -76,13 +98,22 @@
     "szablonUwagi": "",
     "x": 620,
     "y": 160,
-    "wires": [["b7a1c0de00000007", "b7a1c0de00000008", "b7a1c0de0000000d"]]
+    "wires": [
+      [
+        "b7a1c0de00000007",
+        "b7a1c0de00000008",
+        "b7a1c0de00000010",
+        "b7a1c0de0000000d"
+      ]
+    ],
+    "lang": "auto",
+    "oceny": true
   },
   {
     "id": "b7a1c0de00000007",
     "type": "mqtt out",
-    "name": "librus/dane",
-    "topic": "librus/dane",
+    "name": "afya/dane",
+    "topic": "afya/dane",
     "qos": "1",
     "retain": "true",
     "respTopic": "",
@@ -98,37 +129,71 @@
   {
     "id": "b7a1c0de00000008",
     "type": "switch",
-    "name": "coś nowego?",
-    "property": "payload.tekst",
+    "name": "nowa ocena?",
+    "property": "payload.tekstOceny",
     "propertyType": "msg",
-    "rules": [{ "t": "nempty" }],
+    "rules": [
+      {
+        "t": "nempty"
+      }
+    ],
     "checkall": "true",
     "repair": false,
     "outputs": 1,
-    "x": 870,
+    "x": 860,
     "y": 180,
-    "wires": [["b7a1c0de00000009", "b7a1c0de0000000b"]]
+    "wires": [
+      [
+        "b7a1c0de0000000f"
+      ]
+    ]
+  },
+  {
+    "id": "b7a1c0de00000010",
+    "type": "switch",
+    "name": "nowa uwaga?",
+    "property": "payload.tekstUwagi",
+    "propertyType": "msg",
+    "rules": [
+      {
+        "t": "nempty"
+      }
+    ],
+    "checkall": "true",
+    "repair": false,
+    "outputs": 1,
+    "x": 860,
+    "y": 240,
+    "wires": [
+      [
+        "b7a1c0de00000011"
+      ]
+    ]
   },
   {
     "id": "b7a1c0de00000009",
     "type": "function",
     "name": "SMS jako JSON",
-    "func": "// Wariant A – obiekt JSON dla bramki SMS: { do, tresc, od, flash }\nconst NUMERY = '48600000000';   // numer odbiorcy; kilka po przecinku: '48600000000,48600000001'\nconst NADAWCA = 'DZIENNIK';     // pole „od” – nazwa nadawcy SMS\n\nmsg.payload = {\n    do: NUMERY,\n    tresc: msg.payload.tekst,\n    od: NADAWCA,\n    flash: false\n};\nreturn msg;",
+    "func": "// Wariant A – obiekt JSON dla bramki SMS: { do, tresc, od, flash }\n// Tekst przychodzi w msg.payload – osobno dla nowej oceny i dla nowej uwagi.\nconst NUMERY = '48600000000';   // numer odbiorcy; kilka po przecinku: '48600000000,48600000001'\nconst NADAWCA = 'DZIENNIK';     // pole „od” – nazwa nadawcy SMS\n\nif (typeof msg.payload !== 'string' || !msg.payload) return null;\nmsg.payload = {\n    do: NUMERY,\n    tresc: msg.payload,\n    od: NADAWCA,\n    flash: false\n};\nreturn msg;",
     "outputs": 1,
     "timeout": 0,
     "noerr": 0,
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "x": 1080,
-    "y": 160,
-    "wires": [["b7a1c0de0000000a"]]
+    "x": 1280,
+    "y": 180,
+    "wires": [
+      [
+        "b7a1c0de0000000a"
+      ]
+    ]
   },
   {
     "id": "b7a1c0de0000000a",
     "type": "mqtt out",
-    "name": "librus/sms/json",
-    "topic": "librus/sms/json",
+    "name": "afya/sms/json",
+    "topic": "afya/sms/json",
     "qos": "1",
     "retain": "false",
     "respTopic": "",
@@ -137,29 +202,69 @@
     "correl": "",
     "expiry": "",
     "broker": "b7a1c0de0000000e",
-    "x": 1300,
-    "y": 160,
+    "x": 1490,
+    "y": 180,
     "wires": []
   },
   {
-    "id": "b7a1c0de0000000b",
+    "id": "b7a1c0de0000000f",
     "type": "change",
-    "name": "SMS jako tekst",
-    "rules": [{ "t": "set", "p": "payload", "pt": "msg", "to": "payload.tekst", "tot": "msg" }],
+    "name": "SMS ocena",
+    "rules": [
+      {
+        "t": "set",
+        "p": "payload",
+        "pt": "msg",
+        "to": "payload.tekstOceny",
+        "tot": "msg"
+      }
+    ],
     "action": "",
     "property": "",
     "from": "",
     "to": "",
     "reg": false,
-    "x": 1080,
-    "y": 220,
-    "wires": [["b7a1c0de0000000c"]]
+    "x": 1060,
+    "y": 180,
+    "wires": [
+      [
+        "b7a1c0de00000009",
+        "b7a1c0de0000000c"
+      ]
+    ]
+  },
+  {
+    "id": "b7a1c0de00000011",
+    "type": "change",
+    "name": "SMS uwaga",
+    "rules": [
+      {
+        "t": "set",
+        "p": "payload",
+        "pt": "msg",
+        "to": "payload.tekstUwagi",
+        "tot": "msg"
+      }
+    ],
+    "action": "",
+    "property": "",
+    "from": "",
+    "to": "",
+    "reg": false,
+    "x": 1060,
+    "y": 240,
+    "wires": [
+      [
+        "b7a1c0de00000009",
+        "b7a1c0de0000000c"
+      ]
+    ]
   },
   {
     "id": "b7a1c0de0000000c",
     "type": "mqtt out",
-    "name": "librus/sms/tekst",
-    "topic": "librus/sms/tekst",
+    "name": "afya/sms/tekst",
+    "topic": "afya/sms/tekst",
     "qos": "1",
     "retain": "false",
     "respTopic": "",
@@ -168,8 +273,8 @@
     "correl": "",
     "expiry": "",
     "broker": "b7a1c0de0000000e",
-    "x": 1300,
-    "y": 220,
+    "x": 1290,
+    "y": 240,
     "wires": []
   },
   {
@@ -183,7 +288,7 @@
     "complete": "payload",
     "targetType": "msg",
     "x": 850,
-    "y": 260,
+    "y": 300,
     "wires": []
   },
   {

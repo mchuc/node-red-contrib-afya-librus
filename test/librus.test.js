@@ -128,7 +128,7 @@ test('informacje o uczniu', () => {
 
 test('tekst SMS z szablonu, opcjonalnie bez polskich znaków', () => {
   const o = { ocena: '5', zapis: '5(3)', przedmiot: 'Język polski', kategoria: 'Sprawdzian', komentarz: '', waga: 3, srednia: 4.75 };
-  assert.equal(tekstSms(undefined, o, 'Jaś'), 'Librus Jaś: 5(3) z Język polski (Sprawdzian)');
+  assert.equal(tekstSms(undefined, o, 'Jaś'), 'Jaś: 5(3) z Język polski (Sprawdzian)');
   assert.equal(
     tekstSms('%uczen%: %ocena% z %przedmiot%, śr. %srednia% %nieznane%', o, 'Żaneta Łącka', true),
     'Zaneta Lacka: 5 z Jezyk polski, sr. 4.75 %nieznane%',

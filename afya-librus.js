@@ -45,14 +45,14 @@ module.exports = function (RED) {
     const { key: zmienna, store: magazyn } = RED.util.parseContextStore(String(config.variableName || '').trim());
     let trwa = false;
 
-    // Strona z ocenami (np. /librus/jas) – ostatni udany odczyt + ewentualny błąd
+    // Strona z ocenami (np. /afya/jas) – ostatni udany odczyt + ewentualny błąd
     const stronaWlaczona = !!config.strona;
     const ostatni = { dane: null, czas: null, blad: null, czasBledu: null };
     let zamknijStrone = null;
     if (stronaWlaczona) {
       const zapisany = (wczytajStan(plikStanu) || {}).ostatni;
       if (zapisany && zapisany.dane) Object.assign(ostatni, { dane: zapisany.dane, czas: zapisany.czas });
-      const sciezka = normalizujSciezke(config.sciezka || 'librus');
+      const sciezka = normalizujSciezke(config.sciezka || 'afya/oceny');
       try {
         if (!sciezka) throw new Error(`invalid page path "${config.sciezka}"`);
         const { hasloStrony = '', tokenStrony = '' } = node.credentials || {};

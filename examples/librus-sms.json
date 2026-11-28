@@ -1,87 +1,513 @@
 [
   {
     "id": "a1f0c0de00000001",
-    "type": "inject",
-    "name": "co 1 h",
-    "props": [],
-    "repeat": "3600",
-    "crontab": "",
-    "once": true,
-    "onceDelay": "15",
-    "topic": "",
-    "x": 130,
-    "y": 100,
-    "wires": [["a1f0c0de00000002"]]
+    "type": "comment",
+    "name": "Librus → SMS · oceny i uwagi osobno · dwoje dzieci · przeczytaj mnie",
+    "info": "## Librus → SMS: oceny i uwagi osobno\n\nDwoje dzieci, każde ma własny węzeł Librus. Nowa ocena i nowa uwaga idą **osobnymi SMS-ami**\n(`payload.tekstOceny` i `payload.tekstUwagi`), każdy według własnego szablonu w węźle.\n\n* **co 30 min pn–pt 7–16** i **co 1 h 17–21** – harmonogram (czas serwera, ustaw `TZ=Europe/Warsaw`),\n* **nowa ocena? / nowa uwaga?** – przepuszczają tylko niepusty tekst, więc SMS idzie tylko gdy coś nowego,\n* **SMS ocena / SMS uwaga** – w `msg.payload` zostaje sam tekst,\n* **Rodzic 1, Rodzic 2, Jaś, Ola** – jedna funkcja = jeden numer; podłącz, kto ma dostawać SMS-y którego dziecka,\n* **bramka SMS** – zapytanie HTTP z tokenem w nagłówku `X-SMS-Token`,\n* **librus/…/dane** – cały wynik do MQTT (retain), np. dla Home Assistanta.\n\n## Do ustawienia\n\n1. Login i hasło Librusa w węzłach **Jaś** i **Ola** (oraz hasło lub token strony z ocenami).\n2. Numery w funkcjach **Rodzic 1**, **Rodzic 2**, **Jaś**, **Ola** i adres bramki (`BRAMKA`).\n3. Token w węźle **bramka SMS** (nagłówek `X-SMS-Token`) – albo nagłówki, jakich wymaga Twoja bramka.\n4. Adres brokera w węzłach MQTT.\n5. Kliknij **test SMS (msg.test)** – przyjdzie najnowsza ocena i uwaga każdego dziecka.\n\nPierwsze sprawdzenie po wdrożeniu tylko zapamiętuje oceny – SMS-y przychodzą od drugiego.",
+    "x": 310,
+    "y": 40,
+    "wires": []
   },
   {
     "id": "a1f0c0de00000002",
-    "type": "afya-librus",
-    "name": "Librus – oceny",
-    "szablon": "",
-    "bezPl": false,
-    "zTablica": true,
-    "uwagi": true,
-    "szablonUwagi": "",
-    "x": 320,
-    "y": 100,
-    "wires": [["a1f0c0de00000003", "a1f0c0de00000005"]]
-  },
-  {
-    "id": "a1f0c0de00000003",
-    "type": "switch",
-    "name": "coś nowego?",
-    "property": "payload.tekst",
-    "propertyType": "msg",
-    "rules": [{ "t": "nempty" }],
-    "checkall": "true",
-    "repair": false,
-    "outputs": 1,
-    "x": 530,
-    "y": 100,
-    "wires": [["a1f0c0de00000004"]]
-  },
-  {
-    "id": "a1f0c0de00000004",
-    "type": "debug",
-    "name": "→ tu podłącz SMS sender (payload.tekst)",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": true,
-    "complete": "payload.tekst",
-    "targetType": "msg",
-    "statusVal": "payload.tekst",
-    "statusType": "msg",
-    "x": 800,
-    "y": 100,
-    "wires": []
+    "type": "inject",
+    "name": "co 30 min pn–pt 7–16",
+    "props": [],
+    "repeat": "",
+    "crontab": "*/30 7-15 * * 1-5",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 150,
+    "y": 160,
+    "wires": [
+      [
+        "a1f0c0de00000003",
+        "a1f0c0de00000004"
+      ]
+    ]
   },
   {
     "id": "a1f0c0de00000005",
-    "type": "debug",
-    "name": "cały wynik (ok / błąd)",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "x": 560,
-    "y": 160,
-    "wires": []
+    "type": "inject",
+    "name": "co 1 h 17–21, pn–nd",
+    "props": [],
+    "repeat": "",
+    "crontab": "0 17-20 * * *",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 150,
+    "y": 220,
+    "wires": [
+      [
+        "a1f0c0de00000003",
+        "a1f0c0de00000004"
+      ]
+    ]
   },
   {
     "id": "a1f0c0de00000006",
     "type": "inject",
     "name": "test SMS (msg.test)",
-    "props": [{ "p": "test", "v": "true", "vt": "bool" }],
+    "props": [
+      {
+        "p": "test",
+        "v": "true",
+        "vt": "bool"
+      }
+    ],
     "repeat": "",
     "crontab": "",
     "once": false,
     "onceDelay": 0.1,
     "topic": "",
     "x": 150,
+    "y": 280,
+    "wires": [
+      [
+        "a1f0c0de00000003",
+        "a1f0c0de00000004"
+      ]
+    ]
+  },
+  {
+    "id": "a1f0c0de00000003",
+    "type": "afya-librus",
+    "name": "Jaś",
+    "lang": "auto",
+    "szablon": "%uczen%: %ocena% [%przedmiot%] (waga: %waga%) %data%, średnia %srednia%",
+    "oceny": true,
+    "bezPl": true,
+    "zTablica": false,
+    "uwagi": true,
+    "szablonUwagi": "%uczen%: uwaga %rodzaj%, %kategoria% – %tresc% (%nauczyciel%)",
+    "variableName": "",
+    "scope": "global",
+    "strona": true,
+    "tytulStrony": "Jaś",
+    "sciezka": "afya/jas",
+    "x": 400,
+    "y": 220,
+    "wires": [
+      [
+        "a1f0c0de00000007",
+        "a1f0c0de00000008",
+        "a1f0c0de00000009"
+      ]
+    ]
+  },
+  {
+    "id": "a1f0c0de00000007",
+    "type": "switch",
+    "name": "nowa ocena?",
+    "property": "payload.tekstOceny",
+    "propertyType": "msg",
+    "rules": [
+      {
+        "t": "nempty"
+      }
+    ],
+    "checkall": "true",
+    "repair": false,
+    "outputs": 1,
+    "x": 620,
     "y": 160,
-    "wires": [["a1f0c0de00000002"]]
+    "wires": [
+      [
+        "a1f0c0de0000000a"
+      ]
+    ]
+  },
+  {
+    "id": "a1f0c0de0000000a",
+    "type": "change",
+    "name": "SMS ocena",
+    "rules": [
+      {
+        "t": "set",
+        "p": "payload",
+        "pt": "msg",
+        "to": "payload.tekstOceny",
+        "tot": "msg"
+      }
+    ],
+    "action": "",
+    "property": "",
+    "from": "",
+    "to": "",
+    "reg": false,
+    "x": 820,
+    "y": 160,
+    "wires": [
+      [
+        "a1f0c0de0000000b",
+        "a1f0c0de0000000c",
+        "a1f0c0de0000000d"
+      ]
+    ]
+  },
+  {
+    "id": "a1f0c0de00000008",
+    "type": "switch",
+    "name": "nowa uwaga?",
+    "property": "payload.tekstUwagi",
+    "propertyType": "msg",
+    "rules": [
+      {
+        "t": "nempty"
+      }
+    ],
+    "checkall": "true",
+    "repair": false,
+    "outputs": 1,
+    "x": 620,
+    "y": 220,
+    "wires": [
+      [
+        "a1f0c0de0000000e"
+      ]
+    ]
+  },
+  {
+    "id": "a1f0c0de0000000e",
+    "type": "change",
+    "name": "SMS uwaga",
+    "rules": [
+      {
+        "t": "set",
+        "p": "payload",
+        "pt": "msg",
+        "to": "payload.tekstUwagi",
+        "tot": "msg"
+      }
+    ],
+    "action": "",
+    "property": "",
+    "from": "",
+    "to": "",
+    "reg": false,
+    "x": 820,
+    "y": 220,
+    "wires": [
+      [
+        "a1f0c0de0000000b",
+        "a1f0c0de0000000c",
+        "a1f0c0de0000000d"
+      ]
+    ]
+  },
+  {
+    "id": "a1f0c0de00000009",
+    "type": "mqtt out",
+    "name": "afya/jas/dane",
+    "topic": "afya/jas/dane",
+    "qos": "1",
+    "retain": "true",
+    "respTopic": "",
+    "contentType": "",
+    "userProps": "",
+    "correl": "",
+    "expiry": "",
+    "broker": "a1f0c0de0000000f",
+    "x": 640,
+    "y": 280,
+    "wires": []
+  },
+  {
+    "id": "a1f0c0de00000004",
+    "type": "afya-librus",
+    "name": "Ola",
+    "lang": "auto",
+    "szablon": "%uczen%: %ocena% [%przedmiot%] (waga: %waga%) %data%, średnia %srednia%",
+    "oceny": true,
+    "bezPl": true,
+    "zTablica": false,
+    "uwagi": true,
+    "szablonUwagi": "%uczen%: uwaga %rodzaj%, %kategoria% – %tresc% (%nauczyciel%)",
+    "variableName": "",
+    "scope": "global",
+    "strona": true,
+    "tytulStrony": "Ola",
+    "sciezka": "afya/ola",
+    "x": 400,
+    "y": 460,
+    "wires": [
+      [
+        "a1f0c0de00000010",
+        "a1f0c0de00000011",
+        "a1f0c0de00000012"
+      ]
+    ]
+  },
+  {
+    "id": "a1f0c0de00000010",
+    "type": "switch",
+    "name": "nowa ocena?",
+    "property": "payload.tekstOceny",
+    "propertyType": "msg",
+    "rules": [
+      {
+        "t": "nempty"
+      }
+    ],
+    "checkall": "true",
+    "repair": false,
+    "outputs": 1,
+    "x": 620,
+    "y": 400,
+    "wires": [
+      [
+        "a1f0c0de00000013"
+      ]
+    ]
+  },
+  {
+    "id": "a1f0c0de00000013",
+    "type": "change",
+    "name": "SMS ocena",
+    "rules": [
+      {
+        "t": "set",
+        "p": "payload",
+        "pt": "msg",
+        "to": "payload.tekstOceny",
+        "tot": "msg"
+      }
+    ],
+    "action": "",
+    "property": "",
+    "from": "",
+    "to": "",
+    "reg": false,
+    "x": 820,
+    "y": 400,
+    "wires": [
+      [
+        "a1f0c0de0000000b",
+        "a1f0c0de0000000c",
+        "a1f0c0de00000014"
+      ]
+    ]
+  },
+  {
+    "id": "a1f0c0de00000011",
+    "type": "switch",
+    "name": "nowa uwaga?",
+    "property": "payload.tekstUwagi",
+    "propertyType": "msg",
+    "rules": [
+      {
+        "t": "nempty"
+      }
+    ],
+    "checkall": "true",
+    "repair": false,
+    "outputs": 1,
+    "x": 620,
+    "y": 460,
+    "wires": [
+      [
+        "a1f0c0de00000015"
+      ]
+    ]
+  },
+  {
+    "id": "a1f0c0de00000015",
+    "type": "change",
+    "name": "SMS uwaga",
+    "rules": [
+      {
+        "t": "set",
+        "p": "payload",
+        "pt": "msg",
+        "to": "payload.tekstUwagi",
+        "tot": "msg"
+      }
+    ],
+    "action": "",
+    "property": "",
+    "from": "",
+    "to": "",
+    "reg": false,
+    "x": 820,
+    "y": 460,
+    "wires": [
+      [
+        "a1f0c0de0000000b",
+        "a1f0c0de0000000c",
+        "a1f0c0de00000014"
+      ]
+    ]
+  },
+  {
+    "id": "a1f0c0de00000012",
+    "type": "mqtt out",
+    "name": "afya/ola/dane",
+    "topic": "afya/ola/dane",
+    "qos": "1",
+    "retain": "true",
+    "respTopic": "",
+    "contentType": "",
+    "userProps": "",
+    "correl": "",
+    "expiry": "",
+    "broker": "a1f0c0de0000000f",
+    "x": 640,
+    "y": 520,
+    "wires": []
+  },
+  {
+    "id": "a1f0c0de0000000b",
+    "type": "function",
+    "name": "Rodzic 1",
+    "func": "// SMS do jednej osoby – tekst przychodzi w msg.payload (z „SMS ocena” albo „SMS uwaga”).\nconst NUMER = '48600000001';                              // numer odbiorcy: 48 + 9 cyfr\nconst BRAMKA = 'https://bramka-sms.example/send/';    // adres Twojej bramki SMS\nconst tekst = typeof msg.payload === 'string' ? msg.payload : '';\nif (!tekst) return null;   // nigdy nie wysyłaj pustego SMS-a\nmsg.method = 'GET';\nmsg.url = BRAMKA + NUMER + '?text=' + encodeURIComponent(tekst);\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1030,
+    "y": 240,
+    "wires": [
+      [
+        "a1f0c0de00000016"
+      ]
+    ]
+  },
+  {
+    "id": "a1f0c0de0000000c",
+    "type": "function",
+    "name": "Rodzic 2",
+    "func": "// SMS do jednej osoby – tekst przychodzi w msg.payload (z „SMS ocena” albo „SMS uwaga”).\nconst NUMER = '48600000002';                              // numer odbiorcy: 48 + 9 cyfr\nconst BRAMKA = 'https://bramka-sms.example/send/';    // adres Twojej bramki SMS\nconst tekst = typeof msg.payload === 'string' ? msg.payload : '';\nif (!tekst) return null;   // nigdy nie wysyłaj pustego SMS-a\nmsg.method = 'GET';\nmsg.url = BRAMKA + NUMER + '?text=' + encodeURIComponent(tekst);\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1030,
+    "y": 300,
+    "wires": [
+      [
+        "a1f0c0de00000016"
+      ]
+    ]
+  },
+  {
+    "id": "a1f0c0de0000000d",
+    "type": "function",
+    "name": "Jaś",
+    "func": "// SMS do jednej osoby – tekst przychodzi w msg.payload (z „SMS ocena” albo „SMS uwaga”).\nconst NUMER = '48600000003';                              // numer odbiorcy: 48 + 9 cyfr\nconst BRAMKA = 'https://bramka-sms.example/send/';    // adres Twojej bramki SMS\nconst tekst = typeof msg.payload === 'string' ? msg.payload : '';\nif (!tekst) return null;   // nigdy nie wysyłaj pustego SMS-a\nmsg.method = 'GET';\nmsg.url = BRAMKA + NUMER + '?text=' + encodeURIComponent(tekst);\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1030,
+    "y": 180,
+    "wires": [
+      [
+        "a1f0c0de00000016"
+      ]
+    ]
+  },
+  {
+    "id": "a1f0c0de00000014",
+    "type": "function",
+    "name": "Ola",
+    "func": "// SMS do jednej osoby – tekst przychodzi w msg.payload (z „SMS ocena” albo „SMS uwaga”).\nconst NUMER = '48600000004';                              // numer odbiorcy: 48 + 9 cyfr\nconst BRAMKA = 'https://bramka-sms.example/send/';    // adres Twojej bramki SMS\nconst tekst = typeof msg.payload === 'string' ? msg.payload : '';\nif (!tekst) return null;   // nigdy nie wysyłaj pustego SMS-a\nmsg.method = 'GET';\nmsg.url = BRAMKA + NUMER + '?text=' + encodeURIComponent(tekst);\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1030,
+    "y": 480,
+    "wires": [
+      [
+        "a1f0c0de00000016"
+      ]
+    ]
+  },
+  {
+    "id": "a1f0c0de00000016",
+    "type": "http request",
+    "name": "bramka SMS",
+    "method": "GET",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [
+      {
+        "keyType": "other",
+        "keyValue": "X-SMS-Token",
+        "valueType": "other",
+        "valueValue": "TWOJ_TOKEN"
+      }
+    ],
+    "x": 1250,
+    "y": 330,
+    "wires": [
+      [
+        "a1f0c0de00000017"
+      ]
+    ]
+  },
+  {
+    "id": "a1f0c0de00000017",
+    "type": "debug",
+    "name": "odpowiedź bramki",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": true,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "statusCode",
+    "statusType": "msg",
+    "x": 1460,
+    "y": 330,
+    "wires": []
+  },
+  {
+    "id": "a1f0c0de0000000f",
+    "type": "mqtt-broker",
+    "name": "broker MQTT",
+    "broker": "localhost",
+    "port": "1883",
+    "clientid": "",
+    "autoConnect": true,
+    "usetls": false,
+    "protocolVersion": "4",
+    "keepalive": "60",
+    "cleansession": true,
+    "autoUnsubscribe": true,
+    "birthTopic": "",
+    "birthQos": "0",
+    "birthRetain": "false",
+    "birthPayload": "",
+    "birthMsg": {},
+    "closeTopic": "",
+    "closeQos": "0",
+    "closeRetain": "false",
+    "closePayload": "",
+    "closeMsg": {},
+    "willTopic": "",
+    "willQos": "0",
+    "willRetain": "false",
+    "willPayload": "",
+    "willMsg": {},
+    "userProps": "",
+    "sessionExpiry": ""
   }
 ]

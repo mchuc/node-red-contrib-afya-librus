@@ -33,9 +33,104 @@
 <script type="text/javascript">
   (function () {
     const plainKey = (v) => String(v || '').replace(/^#:\(\S+?\)::/, '');
-    const DEFAULT_GRADE = 'Librus %uczen%: %zapis% z %przedmiot% (%kategoria%) %komentarz%';
-    const DEFAULT_NOTE = 'Librus %uczen%: uwaga %rodzaj% – %tresc% (%nauczyciel%)';
+    const DEFAULT_GRADE = '%uczen%: %zapis% z %przedmiot% (%kategoria%) %komentarz%';
+    const DEFAULT_NOTE = '%uczen%: uwaga %rodzaj% – %tresc% (%nauczyciel%)';
     const esc = (v) => $('<span>').text(v).html();
+    const TEXTS = {
+      en: {
+        name: 'Name', namePh: 'e.g. Librus – John', lang: 'Labels', langAuto: 'system language ({l})',
+        secAccount: 'Librus Synergia account', login: 'Login', loginPh: 'parent or student login', password: 'Password',
+        credHint: 'Stored as Node-RED credentials – never exported with the flow.',
+        secGrade: 'New grade', sendGrade: 'Send info about a new grade', text: 'Text',
+        appendAll: 'Append all grades of the subject, e.g. <code>| oceny: 5(1), 6(3), 4[1](2)</code>', output: 'output',
+        secNote: 'New note', sendNote: 'Send info about a new note (<i>uwaga</i>)',
+        bezPl: 'Without Polish letters (160 instead of 70 characters per SMS)',
+        bothHint: 'Both texts together, one line each: <code>payload.tekst</code> – empty when nothing is new.',
+        secPage: 'Grades page', showPage: 'Show a web page with the grades (class, subjects A–Z, averages)',
+        pageTitle: 'Page title', pageTitlePh: "e.g. John's grades (empty = student's name)", pagePath: 'Page path',
+        pathHint: 'One path per child, e.g. <code>afya/john</code> and <code>afya/anna</code>. Address:',
+        afterDeploy: '(works after deploy)', pagePassword: 'Page password',
+        pwHint: 'Login form, then the browser stays logged in for 30 days. Stored as Node-RED credentials.',
+        token: 'Access token', tokenPh: 'optional – link without logging in', generate: 'Generate', copy: 'Copy',
+        linkCopied: 'Link copied',
+        tokenHint: 'For a smart mirror or a wall tablet: the link below opens the page without logging in. ' +
+          'Anyone with the link sees the grades – generate a new token to revoke it. Set a password, a token, or both.',
+        secVar: 'Context variable', variable: 'Variable', variablePh: 'optional, e.g. librus_john',
+        varHint: 'Optional. Keeps the last <code>msg.payload</code> – choose <b>global</b> to read it from any flow.',
+        sGrade: '<b>New grade</b> → <code>payload.tekstOceny</code>:',
+        sNoGrade: 'New grades: <b>no info</b> (still listed in <code>payload.nowe</code>).',
+        sNote: '<b>New note</b> → <code>payload.tekstUwagi</code>:',
+        sNoNote: 'New notes: <b>no info</b> (notes are not read).',
+        sBoth: 'Both together: <code>payload.tekst</code>.', sBezPl: 'Polish letters are replaced (ą → a …).',
+        sPage: 'Grades page:', sPwToken: 'password, or the link with the token', sPw: 'password',
+        sToken: 'only the link with the token', sOff: '<b>off until a password or token is set</b>',
+        sVar: 'Last result is also stored in {v}.', sNoVar: 'Last result is not stored in a context variable.',
+      },
+      pl: {
+        name: 'Nazwa', namePh: 'np. Librus – Jaś', lang: 'Etykiety', langAuto: 'język systemu ({l})',
+        secAccount: 'Konto Librus Synergia', login: 'Login', loginPh: 'login rodzica lub ucznia', password: 'Hasło',
+        credHint: 'Zapisywane jako dane uwierzytelniające Node-RED – nie trafiają do eksportu flow.',
+        secGrade: 'Nowa ocena', sendGrade: 'Wysyłaj info o nowej ocenie', text: 'Tekst',
+        appendAll: 'Dopisz wszystkie oceny z przedmiotu, np. <code>| oceny: 5(1), 6(3), 4[1](2)</code>', output: 'wyjście',
+        secNote: 'Nowa uwaga', sendNote: 'Wysyłaj info o nowej uwadze',
+        bezPl: 'Bez polskich znaków (160 zamiast 70 znaków w jednym SMS-ie)',
+        bothHint: 'Oba teksty razem, każdy w osobnej linii: <code>payload.tekst</code> – pusty, gdy nic nowego.',
+        secPage: 'Strona z ocenami', showPage: 'Pokazuj stronę z ocenami (klasa, przedmioty A–Z, średnie)',
+        pageTitle: 'Tytuł strony', pageTitlePh: 'np. Oceny Jasia (puste = imię i nazwisko ucznia)', pagePath: 'Ścieżka strony',
+        pathHint: 'Każde dziecko – osobna ścieżka, np. <code>afya/jas</code> i <code>afya/ola</code>. Adres:',
+        afterDeploy: '(działa po wdrożeniu)', pagePassword: 'Hasło strony',
+        pwHint: 'Formularz logowania, potem przeglądarka pamięta logowanie przez 30 dni. Zapisywane jako dane uwierzytelniające Node-RED.',
+        token: 'Token dostępu', tokenPh: 'opcjonalnie – link bez logowania', generate: 'Generuj', copy: 'Kopiuj',
+        linkCopied: 'Skopiowano link',
+        tokenHint: 'Na lustro lub tablet na ścianie: link poniżej otwiera stronę bez logowania. ' +
+          'Każdy, kto ma link, widzi oceny – wygeneruj nowy token, żeby go unieważnić. Ustaw hasło, token albo oba.',
+        secVar: 'Zmienna kontekstu', variable: 'Zmienna', variablePh: 'opcjonalnie, np. librus_jas',
+        varHint: 'Opcjonalnie. Przechowuje ostatni <code>msg.payload</code> – wybierz <b>global</b>, żeby czytać go z każdego flow.',
+        sGrade: '<b>Nowa ocena</b> → <code>payload.tekstOceny</code>:',
+        sNoGrade: 'Nowe oceny: <b>bez informacji</b> (nadal są w <code>payload.nowe</code>).',
+        sNote: '<b>Nowa uwaga</b> → <code>payload.tekstUwagi</code>:',
+        sNoNote: 'Nowe uwagi: <b>bez informacji</b> (uwagi nie są czytane).',
+        sBoth: 'Oba razem: <code>payload.tekst</code>.', sBezPl: 'Polskie znaki są zamieniane (ą → a …).',
+        sPage: 'Strona z ocenami:', sPwToken: 'hasło albo link z tokenem', sPw: 'hasło',
+        sToken: 'tylko link z tokenem', sOff: '<b>wyłączona, dopóki nie ustawisz hasła lub tokenu</b>',
+        sVar: 'Ostatni wynik trafia też do {v}.', sNoVar: 'Ostatni wynik nie jest zapisywany w zmiennej kontekstu.',
+      },
+    };
+    // --- AFYA: język opisów w oknie konfiguracji („Labels”): auto = polski tylko dla polskiego systemu,
+    //     angielski dla wszystkich innych; zmieniają się tylko opisy – nigdy pola ani wartości.
+    const afyaSystemLocale = function () {
+      try {
+        return localStorage.getItem('editor-language') || navigator.language || '';
+      } catch (e) {
+        return navigator.language || '';
+      }
+    };
+    const afyaLang = function (setting) {
+      if (setting === 'pl' || setting === 'en') return setting;
+      return /^pl\b|^pl[-_]/i.test(afyaSystemLocale()) ? 'pl' : 'en';
+    };
+    /** Tłumaczy otwarte okno (data-t, data-t-ph, data-t-title) i zwraca T(klucz, zmienne) dla tekstów z kodu. */
+    const afyaApplyLang = function (form, texts, setting) {
+      const lang = afyaLang(setting);
+      const T = function (k, v) {
+        let s = (texts[lang] && texts[lang][k]) || texts.en[k] || k;
+        Object.keys(v || {}).forEach(function (n) {
+          s = s.split('{' + n + '}').join(v[n]);
+        });
+        return s;
+      };
+      form.find('[data-t]').each(function () {
+        $(this).html(T($(this).attr('data-t')));
+      });
+      form.find('[data-t-ph]').each(function () {
+        $(this).attr('placeholder', T($(this).attr('data-t-ph')));
+      });
+      form.find('[data-t-title]').each(function () {
+        $(this).attr('title', T($(this).attr('data-t-title')));
+      });
+      form.find('#node-input-lang option[value="auto"]').text(T('langAuto', { l: afyaLang('auto') === 'pl' ? 'Polski' : 'English' }));
+      return T;
+    };
 
     RED.nodes.registerType('afya-librus', {
       category: 'AFYA',
@@ -48,6 +143,7 @@
       outputLabels: 'msg.payload = { ok, nowe, tekst, tekstOceny, tekstUwagi, oceny, … }',
       defaults: {
         name: { value: '' },
+        lang: { value: 'auto' },
         szablon: { value: '' },
         oceny: { value: true },
         bezPl: { value: false },
@@ -59,7 +155,7 @@
         strona: { value: false },
         tytulStrony: { value: '' },
         sciezka: {
-          value: 'librus',
+          value: 'afya/oceny',
           validate: function (v) {
             return /^\/*[a-z0-9][a-z0-9_-]*(\/[a-z0-9][a-z0-9_-]*)*\/*$/i.test(String(v || '').trim());
           },
@@ -79,6 +175,9 @@
       },
       oneditprepare: function () {
         if (!this.scope) $('#node-input-scope').val('global');
+        if (['auto', 'en', 'pl'].indexOf(this.lang) < 0) $('#node-input-lang').val('auto'); // starsze węzły
+        const form = $('#node-input-lang').closest('.afya-form');
+        let T = afyaApplyLang(form, TEXTS, $('#node-input-lang').val());
         const variable = $('#node-input-variableName');
         variable.typedInput({ types: ['global', 'flow'], typeField: '#node-input-scope' });
 
@@ -95,7 +194,7 @@
           })
           .trigger('change');
 
-        // strona z ocenami: adres liczony z httpNodeRoot, np. http://node-red:1880/librus/jas
+        // strona z ocenami: adres liczony z httpNodeRoot, np. http://node-red:1880/afya/jas
         const adresStrony = function () {
           const root = String((RED.settings && RED.settings.httpNodeRoot) || '/').replace(/\/+$/, '');
           const sciezka = String($('#node-input-sciezka').val() || '').trim().replace(/^\/+|\/+$/g, '');
@@ -125,7 +224,7 @@
         $('#afya-librus-token-copy').on('click', function (e) {
           e.preventDefault();
           const link = linkZTokenem();
-          if (link && RED.clipboard && RED.clipboard.copyText) RED.clipboard.copyText(link, $(this), 'Link copied');
+          if (link && RED.clipboard && RED.clipboard.copyText) RED.clipboard.copyText(link, $(this), T('linkCopied'));
           else if (link && navigator.clipboard) navigator.clipboard.writeText(link);
         });
         odswiezStrone();
@@ -135,34 +234,38 @@
           if ($('#node-input-oceny').is(':checked')) {
             let grade = $('#node-input-szablon').val() || DEFAULT_GRADE;
             if ($('#node-input-zTablica').is(':checked')) grade += ' | oceny: %tablica%';
-            text += '<b>New grade</b> → <code>payload.tekstOceny</code>:<br><code>' + esc(grade) + '</code>';
+            text += T('sGrade') + '<br><code>' + esc(grade) + '</code>';
           } else {
-            text += 'New grades: <b>no info</b> (still listed in <code>payload.nowe</code>).';
+            text += T('sNoGrade');
           }
           if ($('#node-input-uwagi').is(':checked')) {
-            text += '<br><b>New note</b> → <code>payload.tekstUwagi</code>:<br><code>' + esc($('#node-input-szablonUwagi').val() || DEFAULT_NOTE) + '</code>';
+            text += '<br>' + T('sNote') + '<br><code>' + esc($('#node-input-szablonUwagi').val() || DEFAULT_NOTE) + '</code>';
           } else {
-            text += '<br>New notes: <b>no info</b> (notes are not read).';
+            text += '<br>' + T('sNoNote');
           }
-          text += '<br>Both together: <code>payload.tekst</code>.';
-          if ($('#node-input-bezPl').is(':checked')) text += '<br>Polish letters are replaced (ą → a …).';
+          text += '<br>' + T('sBoth');
+          if ($('#node-input-bezPl').is(':checked')) text += '<br>' + T('sBezPl');
           if ($('#node-input-strona').is(':checked')) {
             const zHaslem = !!$('#node-input-hasloStrony').val();
             const zTokenem = !!String($('#node-input-tokenStrony').val() || '').trim();
-            text += '<br>Grades page: <code>' + esc(adresStrony()) + '</code> – ' +
-              (zHaslem && zTokenem ? 'password, or the link with the token'
-                : zHaslem ? 'password' : zTokenem ? 'only the link with the token' : '<b>off until a password or token is set</b>') + '.';
+            text += '<br>' + T('sPage') + ' <code>' + esc(adresStrony()) + '</code> – ' +
+              (zHaslem && zTokenem ? T('sPwToken') : zHaslem ? T('sPw') : zTokenem ? T('sToken') : T('sOff')) + '.';
           }
           const key = plainKey(variable.typedInput('value'));
           text += '<br>' + (key
-            ? 'Last result is also stored in <code>' + variable.typedInput('type') + '.' + esc(key) + '</code>.'
-            : 'Last result is not stored in a context variable.');
+            ? T('sVar', { v: '<code>' + variable.typedInput('type') + '.' + esc(key) + '</code>' })
+            : T('sNoVar'));
           $('#afya-librus-summary').html(text);
         };
         $('#node-input-szablon, #node-input-szablonUwagi').on('change keyup', summary);
         $('#node-input-oceny, #node-input-zTablica, #node-input-uwagi, #node-input-bezPl, #node-input-strona').on('change', summary);
         $('#node-input-sciezka, #node-input-tokenStrony, #node-input-hasloStrony').on('change keyup', summary);
         variable.on('change', summary);
+        $('#node-input-lang').on('change', function () {
+          T = afyaApplyLang(form, TEXTS, $(this).val());
+          odswiezStrone();
+          summary();
+        });
         summary();
       },
     });
@@ -172,98 +275,106 @@
 <script type="text/html" data-template-name="afya-librus">
   <div class="afya-form">
     <div class="form-row">
-      <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
-      <input type="text" id="node-input-name" placeholder="e.g. Librus – John" style="width: 65%;">
+      <label for="node-input-name"><i class="fa fa-tag"></i> <span data-t="name">Name</span></label>
+      <input type="text" id="node-input-name" data-t-ph="namePh" placeholder="e.g. Librus – John" style="width: 65%;">
+    </div>
+    <div class="form-row">
+      <label for="node-input-lang"><i class="fa fa-language"></i> <span data-t="lang">Labels</span></label>
+      <select id="node-input-lang" style="width: 65%;">
+        <option value="auto">system language</option>
+        <option value="en">English</option>
+        <option value="pl">Polski</option>
+      </select>
     </div>
 
-    <div class="afya-section"><i class="fa fa-user-circle"></i> Librus Synergia account</div>
+    <div class="afya-section"><i class="fa fa-user-circle"></i> <span data-t="secAccount">Librus Synergia account</span></div>
     <div class="form-row">
-      <label for="node-input-login"><i class="fa fa-user"></i> Login</label>
-      <input type="text" id="node-input-login" placeholder="parent or student login" autocomplete="off" style="width: 65%;">
+      <label for="node-input-login"><i class="fa fa-user"></i> <span data-t="login">Login</span></label>
+      <input type="text" id="node-input-login" data-t-ph="loginPh" placeholder="parent or student login" autocomplete="off" style="width: 65%;">
     </div>
     <div class="form-row">
-      <label for="node-input-haslo"><i class="fa fa-lock"></i> Password</label>
+      <label for="node-input-haslo"><i class="fa fa-lock"></i> <span data-t="password">Password</span></label>
       <input type="password" id="node-input-haslo" autocomplete="new-password" style="width: 65%;">
     </div>
-    <div class="afya-hint">Stored as Node-RED credentials – never exported with the flow.</div>
+    <div class="afya-hint" data-t="credHint">Stored as Node-RED credentials – never exported with the flow.</div>
 
-    <div class="afya-section"><i class="fa fa-star-half-o"></i> New grade</div>
+    <div class="afya-section"><i class="fa fa-star-half-o"></i> <span data-t="secGrade">New grade</span></div>
     <div class="afya-check">
       <input type="checkbox" id="node-input-oceny">
-      <label for="node-input-oceny">Send info about a new grade</label>
+      <label for="node-input-oceny" data-t="sendGrade">Send info about a new grade</label>
     </div>
     <div class="form-row afya-librus-grades">
-      <label for="node-input-szablon"><i class="fa fa-commenting"></i> Text</label>
-      <input type="text" id="node-input-szablon" placeholder="Librus %uczen%: %zapis% z %przedmiot% (%kategoria%) %komentarz%" style="width: 65%;">
+      <label for="node-input-szablon"><i class="fa fa-commenting"></i> <span data-t="text">Text</span></label>
+      <input type="text" id="node-input-szablon" placeholder="%uczen%: %zapis% z %przedmiot% (%kategoria%) %komentarz%" style="width: 65%;">
     </div>
     <div class="afya-check afya-librus-grades">
       <input type="checkbox" id="node-input-zTablica">
-      <label for="node-input-zTablica">Append all grades of the subject, e.g. <code>| oceny: 5(1), 6(3), 4[1](2)</code></label>
+      <label for="node-input-zTablica" data-t="appendAll">Append all grades of the subject, e.g. <code>| oceny: 5(1), 6(3), 4[1](2)</code></label>
     </div>
     <div class="afya-hint afya-librus-grades">
       <code>%zapis%</code> <code>%ocena%</code> <code>%przedmiot%</code> <code>%kategoria%</code>
       <code>%komentarz%</code> <code>%waga%</code> <code>%data%</code> <code>%nauczyciel%</code> <code>%srednia%</code>
-      <code>%tablica%</code> <code>%semestr%</code> <code>%uczen%</code> · output: <code>payload.tekstOceny</code>
+      <code>%tablica%</code> <code>%semestr%</code> <code>%uczen%</code> · <span data-t="output">output</span>: <code>payload.tekstOceny</code>
     </div>
 
-    <div class="afya-section"><i class="fa fa-exclamation-circle"></i> New note</div>
+    <div class="afya-section"><i class="fa fa-exclamation-circle"></i> <span data-t="secNote">New note</span></div>
     <div class="afya-check">
       <input type="checkbox" id="node-input-uwagi">
-      <label for="node-input-uwagi">Send info about a new note (<i>uwaga</i>)</label>
+      <label for="node-input-uwagi" data-t="sendNote">Send info about a new note (<i>uwaga</i>)</label>
     </div>
     <div class="form-row afya-librus-notes">
-      <label for="node-input-szablonUwagi"><i class="fa fa-commenting"></i> Text</label>
-      <input type="text" id="node-input-szablonUwagi" placeholder="Librus %uczen%: uwaga %rodzaj% – %tresc% (%nauczyciel%)" style="width: 65%;">
+      <label for="node-input-szablonUwagi"><i class="fa fa-commenting"></i> <span data-t="text">Text</span></label>
+      <input type="text" id="node-input-szablonUwagi" placeholder="%uczen%: uwaga %rodzaj% – %tresc% (%nauczyciel%)" style="width: 65%;">
     </div>
     <div class="afya-hint afya-librus-notes">
       <code>%tresc%</code> <code>%rodzaj%</code> <code>%kategoria%</code> <code>%nauczyciel%</code>
-      <code>%data%</code> <code>%uczen%</code> · output: <code>payload.tekstUwagi</code>
+      <code>%data%</code> <code>%uczen%</code> · <span data-t="output">output</span>: <code>payload.tekstUwagi</code>
     </div>
 
     <div class="afya-section"><i class="fa fa-mobile"></i> SMS</div>
     <div class="afya-check">
       <input type="checkbox" id="node-input-bezPl">
-      <label for="node-input-bezPl">Without Polish letters (160 instead of 70 characters per SMS)</label>
+      <label for="node-input-bezPl" data-t="bezPl">Without Polish letters (160 instead of 70 characters per SMS)</label>
     </div>
-    <div class="afya-hint">Both texts together, one line each: <code>payload.tekst</code> – empty when nothing is new.</div>
+    <div class="afya-hint" data-t="bothHint">Both texts together, one line each: <code>payload.tekst</code> – empty when nothing is new.</div>
 
-    <div class="afya-section"><i class="fa fa-table"></i> Grades page</div>
+    <div class="afya-section"><i class="fa fa-table"></i> <span data-t="secPage">Grades page</span></div>
     <div class="afya-check">
       <input type="checkbox" id="node-input-strona">
-      <label for="node-input-strona">Show a web page with the grades (class, subjects A–Z, averages)</label>
+      <label for="node-input-strona" data-t="showPage">Show a web page with the grades (class, subjects A–Z, averages)</label>
     </div>
     <div class="form-row afya-librus-page">
-      <label for="node-input-tytulStrony"><i class="fa fa-header"></i> Page title</label>
-      <input type="text" id="node-input-tytulStrony" placeholder="e.g. John's grades (empty = student's name)" style="width: 65%;">
+      <label for="node-input-tytulStrony"><i class="fa fa-header"></i> <span data-t="pageTitle">Page title</span></label>
+      <input type="text" id="node-input-tytulStrony" data-t-ph="pageTitlePh" placeholder="e.g. John's grades (empty = student's name)" style="width: 65%;">
     </div>
     <div class="form-row afya-librus-page">
-      <label for="node-input-sciezka"><i class="fa fa-link"></i> Page path</label>
-      <input type="text" id="node-input-sciezka" placeholder="librus/john" style="width: 65%;">
+      <label for="node-input-sciezka"><i class="fa fa-link"></i> <span data-t="pagePath">Page path</span></label>
+      <input type="text" id="node-input-sciezka" placeholder="afya/john" style="width: 65%;">
     </div>
-    <div class="afya-hint afya-librus-page">One path per child, e.g. <code>librus/john</code> and <code>librus/anna</code>.
-      Address: <a id="afya-librus-url" target="_blank" rel="noopener"></a> (works after deploy)</div>
+    <div class="afya-hint afya-librus-page"><span data-t="pathHint">One path per child, e.g. <code>afya/john</code> and <code>afya/anna</code>. Address:</span>
+      <a id="afya-librus-url" target="_blank" rel="noopener"></a> <span data-t="afterDeploy">(works after deploy)</span></div>
     <div class="form-row afya-librus-page">
-      <label for="node-input-hasloStrony"><i class="fa fa-key"></i> Page password</label>
+      <label for="node-input-hasloStrony"><i class="fa fa-key"></i> <span data-t="pagePassword">Page password</span></label>
       <input type="password" id="node-input-hasloStrony" autocomplete="new-password" style="width: 65%;">
     </div>
-    <div class="afya-hint afya-librus-page">Login form, then the browser stays logged in for 30 days. Stored as Node-RED credentials.</div>
+    <div class="afya-hint afya-librus-page" data-t="pwHint">Login form, then the browser stays logged in for 30 days. Stored as Node-RED credentials.</div>
     <div class="form-row afya-librus-page">
-      <label for="node-input-tokenStrony"><i class="fa fa-ticket"></i> Access token</label>
-      <input type="text" id="node-input-tokenStrony" placeholder="optional – link without logging in" autocomplete="off" style="width: calc(65% - 92px);">
-      <button type="button" id="afya-librus-token-gen" class="red-ui-button" style="margin-left: 4px;"><i class="fa fa-random"></i> Generate</button>
+      <label for="node-input-tokenStrony"><i class="fa fa-ticket"></i> <span data-t="token">Access token</span></label>
+      <input type="text" id="node-input-tokenStrony" data-t-ph="tokenPh" placeholder="optional – link without logging in" autocomplete="off" style="width: calc(65% - 92px);">
+      <button type="button" id="afya-librus-token-gen" class="red-ui-button" style="margin-left: 4px;"><i class="fa fa-random"></i> <span data-t="generate">Generate</span></button>
     </div>
-    <div class="afya-hint afya-librus-page">For a smart mirror or a wall tablet: the link below opens the page without logging in.
+    <div class="afya-hint afya-librus-page" data-t="tokenHint">For a smart mirror or a wall tablet: the link below opens the page without logging in.
       Anyone with the link sees the grades – generate a new token to revoke it. Set a password, a token, or both.</div>
     <div class="afya-hint afya-librus-token-row"><a id="afya-librus-token-link" target="_blank" rel="noopener" style="word-break: break-all;"></a>
-      <button type="button" id="afya-librus-token-copy" class="red-ui-button red-ui-button-small" style="margin-left: 6px;"><i class="fa fa-copy"></i> Copy</button></div>
+      <button type="button" id="afya-librus-token-copy" class="red-ui-button red-ui-button-small" style="margin-left: 6px;"><i class="fa fa-copy"></i> <span data-t="copy">Copy</span></button></div>
 
-    <div class="afya-section"><i class="fa fa-database"></i> Context variable</div>
+    <div class="afya-section"><i class="fa fa-database"></i> <span data-t="secVar">Context variable</span></div>
     <div class="form-row">
-      <label for="node-input-variableName"><i class="fa fa-globe"></i> Variable</label>
-      <input type="text" id="node-input-variableName" placeholder="optional, e.g. librus_john" style="width: 65%;">
+      <label for="node-input-variableName"><i class="fa fa-globe"></i> <span data-t="variable">Variable</span></label>
+      <input type="text" id="node-input-variableName" data-t-ph="variablePh" placeholder="optional, e.g. librus_john" style="width: 65%;">
       <input type="hidden" id="node-input-scope">
     </div>
-    <div class="afya-hint">Optional. Keeps the last <code>msg.payload</code> – choose <b>global</b> to read it from any flow.</div>
+    <div class="afya-hint" data-t="varHint">Optional. Keeps the last <code>msg.payload</code> – choose <b>global</b> to read it from any flow.</div>
 
     <div class="afya-summary"><i class="fa fa-info-circle"></i><span id="afya-librus-summary"></span></div>
   </div>
@@ -326,17 +437,17 @@
     The average is taken from Librus (columns Śr.I / Śr.II / Śr.R); when the school hides it, it is calculated
     from the Librus weights and marked with <code>*</code>.</p>
   <p>Access: the <i>page password</i> (login form, session cookie for 30 days) and/or the <i>access token</i> –
-    the link <code>…/librus/john?token=…</code> opens the page without logging in (smart mirror, wall tablet).
+    the link <code>…/afya/john?token=…</code> opens the page without logging in (smart mirror, wall tablet).
     Without a password and a token the page stays off. <i>Page title</i> is shown in the header and the browser
     tab (empty = student's name). Each child gets its own node, path and password/token, e.g.
-    <code>librus/john</code> and <code>librus/anna</code>. The last result is kept, so the page works right after
+    <code>afya/john</code> and <code>afya/anna</code>. The last result is kept, so the page works right after
     a restart.</p>
 
   <h3>Details</h3>
   <p>Seen grades are saved in <code>~/.node-red/afya-librus/</code>, so a restart does not cause duplicate SMS.
-    Pass only messages with a non-empty <code>payload.tekst</code> to the SMS gateway (<i>switch</i>, “is not empty”) –
-    or use <code>payload.tekstOceny</code> and <code>payload.tekstUwagi</code> to send grades and notes separately
-    (e.g. to different people).
+    Pass only a non-empty text to the SMS gateway: <code>payload.tekstOceny</code> for grades and
+    <code>payload.tekstUwagi</code> for notes – a <i>switch</i> (“is not empty”) for each, so they go as separate SMS
+    (also to different people). <code>payload.tekst</code> holds both together.
     With a <i>variable</i> set, the last <code>msg.payload</code> is also kept in a <b>global</b> or <b>flow</b>
     context variable.</p>
   <p>Ready flows: <b>Menu → Import → Examples → node-red-contrib-afya-librus</b>.</p>
@@ -348,7 +459,7 @@
     <i>Send info about a new note</i> włączają każdy z tekstów. <code>msg.test = true</code> – test SMS.
     Pierwszy odczyt tylko zapamiętuje oceny. Opcjonalnie ostatni wynik trafia do zmiennej <b>global</b> lub
     <b>flow</b>.</p>
-  <p><b>Strona z ocenami</b> – po włączeniu węzeł pokazuje stronę pod podaną ścieżką (np. <code>/librus/jas</code>):
+  <p><b>Strona z ocenami</b> – po włączeniu węzeł pokazuje stronę pod podaną ścieżką (np. <code>/afya/jas</code>):
     klasa, przedmioty alfabetycznie, średnia ważona z Librusa zaraz po nazwie i kolejne oceny (data po najechaniu).
     Dostęp po haśle strony albo bez logowania z linku z tokenem (<code>?token=…</code>, np. na lustrze lub tablecie).
     Własny tytuł strony w polu <i>Page title</i>. Każde dziecko – osobny węzeł, ścieżka i hasło/token.</p>

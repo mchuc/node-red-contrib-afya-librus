@@ -1,3 +1,15 @@
+1.4.0 (2026-11-28):
+- Examples and README: MQTT topics afya/… instead of librus/… (afya/jas/dane, afya/dane, afya/sms/json, afya/sms/tekst)
+- Grades page: default path afya/oceny (was librus); help, README and examples use afya/<child>,
+  e.g. afya/jas – existing nodes keep the path they have
+- Default SMS templates start with the student (%uczen%: …) instead of "Librus %uczen%: …";
+  nodes with their own template are not affected
+- Examples: librus-sms rebuilt – two children, schedule, new grade and new note as separate SMS
+  (switches on payload.tekstOceny / payload.tekstUwagi), one function per phone number, HTTP SMS gateway
+  with a token header, full result to MQTT; librus-mqtt – new grade and new note handled separately
+- Edit dialog: new setting "Labels" – descriptions in Polish for a Polish system, English for all others,
+  or chosen by hand (English / Polski); only the descriptions change, fields and values stay the same
+
 1.3.0 (2026-11-28):
 - Separate texts: payload.tekstOceny (new grades) and payload.tekstUwagi (new notes), each with its own template;
   payload.tekst still holds both together (grades, then notes) – existing flows keep working

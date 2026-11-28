@@ -14,14 +14,15 @@ average and all grades of the subject. The result is ready for an SMS gateway. N
 ## English
 
 ```
-[inject every 1 h] → [librus grades] → [switch: payload.tekst not empty] → [SMS sender]
+[inject] → [librus grades] ─┬─► [switch: payload.tekstOceny not empty] → [SMS: new grade]
+                            └─► [switch: payload.tekstUwagi not empty] → [SMS: new note]
 ```
 
 Example SMS (the text is Polish, as it goes to Polish parents):
 
 ```
-Librus Kowalski Jaś: 4[1](2) z Matematyka (Kartkówka) | oceny: 5(3), 3-(2), +, 4[1](2)
-Librus Kowalski Jaś: uwaga negatywna – Brak zadania domowego (Testowa Anna)
+Kowalski Jaś: 4[1](2) z Matematyka (Kartkówka) | oceny: 5(3), 3-(2), +, 4[1](2)
+Kowalski Jaś: uwaga negatywna – Brak zadania domowego (Testowa Anna)
 ```
 
 Grades are written as in the register: `grade(weight)`. An improved grade looks like `new[old]`,
@@ -44,19 +45,20 @@ Restart Node-RED. The node **librus grades** appears in the **AFYA** palette gro
 
 | Field | Description |
 |---|---|
+| Labels | Language of the descriptions in the edit dialog: *system language* (Polish for a Polish system, English for all others), *English* or *Polski*. Only the descriptions change – fields and values stay the same. |
 | Login, Password | Parent or student account. Stored as Node-RED *credentials*, never exported with the flow. |
 | Send info about a new grade | On (default): new grades get a text in `payload.tekstOceny`. Off: no grade text (the grades are still in `payload.nowe`). |
-| New grade · Text | SMS line template for a new grade. Default: `Librus %uczen%: %zapis% z %przedmiot% (%kategoria%) %komentarz%` |
+| New grade · Text | SMS line template for a new grade. Default: `%uczen%: %zapis% z %przedmiot% (%kategoria%) %komentarz%` |
 | Append all grades of the subject | Adds `\| oceny: 5(3), 3-(2), 4[1](2)` (current semester of the subject) to each grade line. |
 | Send info about a new note | Reads the “Uwagi” page; new notes get a text in `payload.tekstUwagi`. |
-| New note · Text | SMS line template for a new note. Default: `Librus %uczen%: uwaga %rodzaj% – %tresc% (%nauczyciel%)` |
+| New note · Text | SMS line template for a new note. Default: `%uczen%: uwaga %rodzaj% – %tresc% (%nauczyciel%)` |
 | Without Polish letters | Replaces ą→a, ł→l … in both texts, so one SMS holds 160 instead of 70 characters. |
 | Variable | Optional: the last `msg.payload` is also stored in a **global** (readable from any flow) or **flow** context variable, e.g. `global.get("librus_john")`. |
 | Show a web page with the grades | Turns on the grades page (see below). |
-| Page path | Address of the page, e.g. `librus/john` → `http://<node-red>:1880/librus/john`. One path per child. |
+| Page path | Address of the page, e.g. `afya/john` → `http://<node-red>:1880/afya/john`. One path per child. Default: `afya/oceny`. |
 | Page title | Shown in the page header and the browser tab, e.g. `John's grades`. Empty = student's name. |
 | Page password | Password for the page (login form, 30-day session). Stored as credentials. |
-| Access token | Optional. The link `…/librus/john?token=…` opens the page **without logging in** – for a smart mirror or a wall tablet. *Generate* creates a random token, *Copy* copies the whole link. |
+| Access token | Optional. The link `…/afya/john?token=…` opens the page **without logging in** – for a smart mirror or a wall tablet. *Generate* creates a random token, *Copy* copies the whole link. |
 
 Grade placeholders: `%zapis%` `%ocena%` `%przedmiot%` `%kategoria%` `%komentarz%` `%waga%` `%data%`
 `%nauczyciel%` `%srednia%` `%tablica%` `%semestr%` `%uczen%`.
@@ -66,19 +68,22 @@ Note placeholders: `%tresc%` `%rodzaj%` `%kategoria%` `%nauczyciel%` `%data%` `%
 
 Every incoming message starts one check. Ready flows: **Menu → Import → Examples → node-red-contrib-afya-librus**:
 
+* **librus-sms** – two children, schedule (Mon–Fri 7–16 every 30 min, 17–21 hourly), new grades and new notes
+  as **separate SMS** (switches on `payload.tekstOceny` and `payload.tekstUwagi`), one function per phone number,
+  an HTTP SMS gateway with a token header and the full result per child to MQTT,
 * **librus-mqtt** – schedule (7:00–15:00 every 45 min, 15:00–21:00 hourly, no checks at night) and MQTT topics
-  `librus/dane` (retained, full result), `librus/sms/json` and `librus/sms/tekst` (only when something is new),
-* **librus-sms** – the simplest variant (inject every 1 h → node → debug).
+  `afya/dane` (retained, full result), `afya/sms/json` and `afya/sms/tekst` (new grade and new note separately).
 
 The **librus-mqtt** flow is also in the Node-RED library: [Librus Synergia: new school grades & notes → MQTT / SMS](https://flows.nodered.org/flow/09832a281a27aff8fee4d1ec3690ebd8).
 
-Pass only messages with a non-empty `msg.payload.tekst` to the SMS gateway (e.g. a *switch* node, rule
-“is not empty”), otherwise an SMS would go out after every check. Set `TZ=Europe/Warsaw` for the schedule.
+Pass only a non-empty text to the SMS gateway – `msg.payload.tekstOceny` for grades and `msg.payload.tekstUwagi`
+for notes (a *switch* node, rule “is not empty”, for each), otherwise an SMS would go out after every check.
+`msg.payload.tekst` holds both together, if one SMS is enough. Set `TZ=Europe/Warsaw` for the schedule.
 
 ### Grades page
 
 Each node can serve its own web page with the grades – one node, path and password per child
-(e.g. `/librus/john` and `/librus/anna`):
+(e.g. `/afya/john` and `/afya/anna`):
 
 * student and class at the top, tabs **Term 1 / Term 2 / Whole year** (the current term opens first),
 * subjects in alphabetical order, the **weighted average right after the subject name**,
@@ -95,7 +100,7 @@ Access – set a password, a token, or both (without either the page stays off):
 
 * **password** – a login form, then a session cookie (`HttpOnly`, `SameSite=Strict`) for 30 days; changing the
   password logs everyone out,
-* **token** – the link `http://<node-red>:1880/librus/john?token=…` shows the page straight away, without logging
+* **token** – the link `http://<node-red>:1880/afya/john?token=…` shows the page straight away, without logging
   in, e.g. on a smart mirror or a tablet on the wall. Anyone with the link sees the grades, so keep it like a
   password; to revoke it, generate a new token and deploy. The link ends up in the browser history and in proxy
   logs – use a long, generated token.
@@ -169,14 +174,15 @@ nauczyciela, waga, średnia i wszystkie oceny z przedmiotu. Wynik od razu nadaje
 do bramki SMS. Nie potrzebuje Home Assistanta ani Pythona.
 
 ```
-[inject co 1 h] → [librus grades] → [switch: payload.tekst niepusty] → [SMS sender]
+[inject] → [librus grades] ─┬─► [switch: payload.tekstOceny niepusty] → [SMS: nowa ocena]
+                            └─► [switch: payload.tekstUwagi niepusty] → [SMS: nowa uwaga]
 ```
 
 Przykładowy SMS:
 
 ```
-Librus Kowalski Jaś: 4[1](2) z Matematyka (Kartkówka) | oceny: 5(3), 3-(2), +, 4[1](2)
-Librus Kowalski Jaś: uwaga negatywna – Brak zadania domowego (Testowa Anna)
+Kowalski Jaś: 4[1](2) z Matematyka (Kartkówka) | oceny: 5(3), 3-(2), +, 4[1](2)
+Kowalski Jaś: uwaga negatywna – Brak zadania domowego (Testowa Anna)
 ```
 
 Oceny są zapisane jak w dzienniku: `ocena(waga)`. Poprawiona ocena ma postać `po[przed]`,
@@ -199,19 +205,20 @@ Potem zrestartuj Node-RED. Węzeł **librus grades** pojawi się w palecie, w gr
 
 | Pole | Opis |
 |---|---|
+| Labels (Etykiety) | Język opisów w oknie konfiguracji: *język systemu* (polski dla polskiego systemu, angielski dla każdego innego), *English* albo *Polski*. Zmieniają się tylko opisy – pola i wartości zostają takie same. |
 | Login, Password | Konto rodzica lub ucznia w Librusie. Zapisywane jako *credentials* Node-RED, więc nie trafiają do eksportu flow. |
 | Send info about a new grade | Włączone (domyślnie): nowe oceny dostają tekst w `payload.tekstOceny`. Wyłączone: bez tekstu o ocenach (oceny nadal są w `payload.nowe`). |
-| New grade · Text | Szablon linii SMS o nowej ocenie. Domyślnie: `Librus %uczen%: %zapis% z %przedmiot% (%kategoria%) %komentarz%` |
+| New grade · Text | Szablon linii SMS o nowej ocenie. Domyślnie: `%uczen%: %zapis% z %przedmiot% (%kategoria%) %komentarz%` |
 | Append all grades of the subject | Do każdej linii o ocenie dopisuje `\| oceny: 5(3), 3-(2), 4[1](2)` (bieżący semestr tego przedmiotu). |
 | Send info about a new note | Czyta stronę „Uwagi”; nowe uwagi dostają tekst w `payload.tekstUwagi`. |
-| New note · Text | Szablon linii SMS o nowej uwadze. Domyślnie: `Librus %uczen%: uwaga %rodzaj% – %tresc% (%nauczyciel%)` |
+| New note · Text | Szablon linii SMS o nowej uwadze. Domyślnie: `%uczen%: uwaga %rodzaj% – %tresc% (%nauczyciel%)` |
 | Without Polish letters | Zamienia ą→a, ł→l itd. w obu tekstach, więc SMS mieści 160 znaków zamiast 70. |
 | Variable | Opcjonalnie: ostatni `msg.payload` trafia też do zmiennej **global** (dostępna z każdego flow) lub **flow**, np. `global.get("librus_jas")`. |
 | Show a web page with the grades | Włącza stronę z ocenami (opis niżej). |
-| Page path | Adres strony, np. `librus/jas` → `http://<node-red>:1880/librus/jas`. Każde dziecko – osobna ścieżka. |
+| Page path | Adres strony, np. `afya/jas` → `http://<node-red>:1880/afya/jas`. Każde dziecko – osobna ścieżka. Domyślnie: `afya/oceny`. |
 | Page title | Tytuł w nagłówku strony i na karcie przeglądarki, np. `Oceny Jasia`. Puste = imię i nazwisko ucznia. |
 | Page password | Hasło do strony (formularz logowania, sesja na 30 dni). Zapisywane jako *credentials*. |
-| Access token | Opcjonalnie. Link `…/librus/jas?token=…` otwiera stronę **bez logowania** – na lustro albo tablet na ścianie. *Generate* tworzy losowy token, *Copy* kopiuje cały link. |
+| Access token | Opcjonalnie. Link `…/afya/jas?token=…` otwiera stronę **bez logowania** – na lustro albo tablet na ścianie. *Generate* tworzy losowy token, *Copy* kopiuje cały link. |
 
 Pola w szablonie oceny: `%zapis%` `%ocena%` `%przedmiot%` `%kategoria%` `%komentarz%` `%waga%`
 `%data%` `%nauczyciel%` `%srednia%` `%tablica%` `%semestr%` `%uczen%`.
@@ -223,22 +230,39 @@ Pola w szablonie uwagi: `%tresc%` `%rodzaj%` `%kategoria%` `%nauczyciel%` `%data
 Każda wiadomość na wejściu uruchamia jedno sprawdzenie. Gotowe flow znajdziesz w
 **Menu → Import → Przykłady → node-red-contrib-afya-librus**:
 
-* **librus-mqtt**: pełny schemat z harmonogramem i MQTT (opis niżej),
-* **librus-sms**: najprostszy wariant (inject co 1 h → węzeł → debug).
+* **librus-sms**: dwoje dzieci, oceny i uwagi osobnymi SMS-ami przez bramkę HTTP (opis niżej),
+* **librus-mqtt**: harmonogram i MQTT (opis niżej).
 
 Flow **librus-mqtt** jest też w bibliotece Node-RED: [Librus Synergia: new school grades & notes → MQTT / SMS](https://flows.nodered.org/flow/09832a281a27aff8fee4d1ec3690ebd8).
 
-Do bramki SMS przepuszczaj tylko wiadomości z niepustym `msg.payload.tekst`, np. węzłem
-*switch* z regułą „is not empty”. Inaczej SMS wychodziłby przy każdym sprawdzeniu.
+Do bramki SMS przepuszczaj tylko niepusty tekst – `msg.payload.tekstOceny` dla ocen i `msg.payload.tekstUwagi`
+dla uwag (dla każdego węzeł *switch* z regułą „is not empty”). Inaczej SMS wychodziłby przy każdym sprawdzeniu.
+`msg.payload.tekst` ma oba teksty razem, jeśli wystarczy jeden SMS.
+
+#### Przykład „librus-sms”: oceny i uwagi osobno
+
+```
+co 30 min pn–pt 7–16 ─┐                  ┌─► [nowa ocena?] ─► [SMS ocena] ─┐
+co 1 h 17–21 ─────────┼─► [Jaś] / [Ola] ─┼─► [nowa uwaga?] ─► [SMS uwaga] ─┼─► [Rodzic 1] [Rodzic 2] [Jaś] ─► [bramka SMS]
+test SMS (msg.test) ──┘                  └─► afya/jas/dane (retain)      ┘
+```
+
+* Każde dziecko ma własny węzeł Librus, a w nim własne szablony oceny i uwagi.
+* **nowa ocena?** / **nowa uwaga?** przepuszczają tylko niepusty `payload.tekstOceny` / `payload.tekstUwagi`,
+  więc ocena i uwaga przychodzą osobnymi SMS-ami.
+* Jedna funkcja = jeden numer telefonu. Podłącz, kto ma dostawać SMS-y którego dziecka.
+* **bramka SMS** to zwykłe zapytanie HTTP z tokenem w nagłówku `X-SMS-Token` – zmień adres i nagłówki na
+  takie, jakich wymaga Twoja bramka.
+* Do ustawienia: login i hasło w węzłach dzieci, numery i adres bramki w funkcjach, token, broker MQTT.
 
 #### Przykład „librus-mqtt”: harmonogram i MQTT
 
 ```
 zegar 1: co 45 min ─► [tylko 7:00–15:00] ─┐
-zegar 2: co 1 h, 15–21 ───────────────────┼─► [Librus – oceny] ─► librus/dane (retain)
+zegar 2: co 1 h, 15–21 ───────────────────┼─► [Librus – oceny] ─► afya/dane (retain)
 test SMS (msg.test) ──────────────────────┘          │
-                                                     └─► [coś nowego?] ─► [SMS jako JSON]  ─► librus/sms/json
-                                                                       └─► [SMS jako tekst] ─► librus/sms/tekst
+                                                     ├─► [nowa ocena?] ─► [SMS ocena] ─┬─► [SMS jako JSON] ─► afya/sms/json
+                                                     └─► [nowa uwaga?] ─► [SMS uwaga] ─┴─► afya/sms/tekst
 ```
 
 * **7:00–15:00**: sprawdzenie co 45 minut. Interwał 45 min jest ustawiony w zwykłym *inject*.
@@ -251,14 +275,14 @@ Tematy MQTT:
 
 | Temat | Kiedy | Treść |
 |---|---|---|
-| `librus/dane` (retain) | po każdym sprawdzeniu | cały `msg.payload` (`ok`, `nowe`, `oceny`, `tablica`, `uwagi`…) albo `ok:false` z `blad` |
-| `librus/sms/json` | tylko gdy coś nowego | wariant A: obiekt JSON dla bramki SMS |
-| `librus/sms/tekst` | tylko gdy coś nowego | wariant B: zwykły tekst SMS |
+| `afya/dane` (retain) | po każdym sprawdzeniu | cały `msg.payload` (`ok`, `nowe`, `oceny`, `tablica`, `uwagi`…) albo `ok:false` z `blad` |
+| `afya/sms/json` | osobno: nowa ocena, nowa uwaga | wariant A: obiekt JSON dla bramki SMS |
+| `afya/sms/tekst` | osobno: nowa ocena, nowa uwaga | wariant B: zwykły tekst SMS |
 
 Wariant A ma postać:
 
 ```json
-{ "do": "48600000000", "tresc": "Librus Kowalski Jaś: 6(2) z Język polski (Wypracowanie)", "od": "DZIENNIK", "flash": false }
+{ "do": "48600000000", "tresc": "Kowalski Jaś: 6(2) z Język polski (Wypracowanie)", "od": "DZIENNIK", "flash": false }
 ```
 
 `do` to numer odbiorcy; kilka numerów oddziel przecinkami. `od` to nazwa nadawcy. Oba ustawisz
@@ -268,7 +292,7 @@ Po imporcie ustaw jeszcze login i hasło Librusa oraz adres brokera, a potem kli
 #### Strona z ocenami
 
 Każdy węzeł może pokazywać własną stronę z ocenami – osobny węzeł, ścieżka i hasło dla każdego dziecka
-(np. `/librus/jas` i `/librus/ola`):
+(np. `/afya/jas` i `/afya/ola`):
 
 * na górze uczeń i klasa, zakładki **Okres 1 / Okres 2 / Cały rok** (otwiera się bieżący okres),
 * przedmioty alfabetycznie, **średnia ważona zaraz po nazwie przedmiotu**,
@@ -285,7 +309,7 @@ Dostęp – ustaw hasło, token albo oba (bez żadnego strona jest wyłączona):
 
 * **hasło** – formularz logowania, potem ciasteczko sesji (`HttpOnly`, `SameSite=Strict`) na 30 dni; zmiana hasła
   wylogowuje wszystkich,
-* **token** – link `http://<node-red>:1880/librus/jas?token=…` pokazuje stronę od razu, bez logowania, np. na
+* **token** – link `http://<node-red>:1880/afya/jas?token=…` pokazuje stronę od razu, bez logowania, np. na
   lustrze albo tablecie na ścianie. Kto ma link, widzi oceny – traktuj go jak hasło; żeby go unieważnić,
   wygeneruj nowy token i wdróż. Link zostaje w historii przeglądarki i w logach pośredników – używaj długiego,
   wygenerowanego tokenu.
@@ -324,8 +348,8 @@ Ostatni wynik leży w `~/.node-red/afya-librus/<id-węzła>.json`, więc strona 
       "tablica": "5(3), 3-(2), +, 4[1](2)"
     }
   ],
-  "tekst": "Librus Kowalski Jaś: 4[1](2) z Matematyka (Kartkówka) | oceny: 5(3), 3-(2), +, 4[1](2)",
-  "tekstOceny": "Librus Kowalski Jaś: 4[1](2) z Matematyka (Kartkówka) | oceny: 5(3), 3-(2), +, 4[1](2)",
+  "tekst": "Kowalski Jaś: 4[1](2) z Matematyka (Kartkówka) | oceny: 5(3), 3-(2), +, 4[1](2)",
+  "tekstOceny": "Kowalski Jaś: 4[1](2) z Matematyka (Kartkówka) | oceny: 5(3), 3-(2), +, 4[1](2)",
   "tekstUwagi": "",
   "pierwszyOdczyt": false,
   "oceny": [ "… wszystkie oceny w tym samym formacie …" ],

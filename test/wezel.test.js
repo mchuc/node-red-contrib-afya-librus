@@ -76,7 +76,7 @@ test('węzeł: pierwszy odczyt cichy, potem tylko nowe oceny; msg.test; zapis st
   // 3) msg.test – najnowsza ocena udaje nową
   msg = await node.wyslij({ test: true });
   assert.equal(msg.payload.nowe.length, 1);
-  assert.equal(msg.payload.tekst, 'Librus Kowalski Jas: 6(2) z Jezyk polski (Wypracowanie) Rozprawka: „Lalka” – bardzo dobra argumentacja');
+  assert.equal(msg.payload.tekst, 'Kowalski Jas: 6(2) z Jezyk polski (Wypracowanie) Rozprawka: „Lalka” – bardzo dobra argumentacja');
 
   // 4) w Librusie pojawia się nowa ocena
   const nowaOcena =
@@ -92,7 +92,7 @@ test('węzeł: pierwszy odczyt cichy, potem tylko nowe oceny; msg.test; zapis st
   assert.equal(nowa.ocena, '2');
   assert.equal(nowa.semestr, 2);
   assert.equal(nowa.srednia, 2.83); // (4.5*1 + 2*2) / 3
-  assert.equal(msg.payload.tekst, 'Librus Kowalski Jas: 2(2) z Matematyka (Kartkowka) Ulamki');
+  assert.equal(msg.payload.tekst, 'Kowalski Jas: 2(2) z Matematyka (Kartkowka) Ulamki');
   assert.equal(node.statusy.at(-1).fill, 'yellow');
 
   // 5) to samo jeszcze raz – już nie jest nowe
@@ -155,12 +155,12 @@ test('węzeł: zestawienie ocen przedmiotu i uwagi nauczyciela', async (t) => {
   assert.equal(msg.payload.noweUwagi.length, 1);
   assert.equal(
     msg.payload.tekst.split('\n').at(-2),
-    'Librus Kowalski Jaś: 5[2](2) z Matematyka (Kartkówka) | oceny: 5[2](2), 4+(1)',
+    'Kowalski Jaś: 5[2](2) z Matematyka (Kartkówka) | oceny: 5[2](2), 4+(1)',
   );
-  assert.equal(msg.payload.tekst.split('\n').at(-1), 'Librus Kowalski Jaś: uwaga negatywna – Brak zadania domowego (Testowa Anna)');
+  assert.equal(msg.payload.tekst.split('\n').at(-1), 'Kowalski Jaś: uwaga negatywna – Brak zadania domowego (Testowa Anna)');
   // osobno: tekst ocen i tekst uwag
-  assert.equal(msg.payload.tekstOceny, 'Librus Kowalski Jaś: 5[2](2) z Matematyka (Kartkówka) | oceny: 5[2](2), 4+(1)');
-  assert.equal(msg.payload.tekstUwagi, 'Librus Kowalski Jaś: uwaga negatywna – Brak zadania domowego (Testowa Anna)');
+  assert.equal(msg.payload.tekstOceny, 'Kowalski Jaś: 5[2](2) z Matematyka (Kartkówka) | oceny: 5[2](2), 4+(1)');
+  assert.equal(msg.payload.tekstUwagi, 'Kowalski Jaś: uwaga negatywna – Brak zadania domowego (Testowa Anna)');
   assert.equal(msg.payload.tekst, msg.payload.tekstOceny + '\n' + msg.payload.tekstUwagi);
 });
 
@@ -174,7 +174,7 @@ test('węzeł: checkboxy – tylko oceny, tylko uwagi; starszy węzeł bez pola 
   await node.wyslij({});
   let msg = await node.wyslij({ test: true });
   assert.equal(msg.payload.nowe.length, 1);
-  assert.match(msg.payload.tekstOceny, /^Librus Kowalski Jaś: 6\(2\) z Język polski/);
+  assert.match(msg.payload.tekstOceny, /^Kowalski Jaś: 6\(2\) z Język polski/);
   assert.equal(msg.payload.tekstUwagi, '');
   assert.equal(msg.payload.tekst, msg.payload.tekstOceny);
   assert.equal(msg.payload.uwagi, undefined);
@@ -185,7 +185,7 @@ test('węzeł: checkboxy – tylko oceny, tylko uwagi; starszy węzeł bez pola 
   msg = await node.wyslij({ test: true });
   assert.equal(msg.payload.tekstOceny, '');
   assert.equal(msg.payload.noweUwagi.length, 1);
-  assert.match(msg.payload.tekstUwagi, /^Librus Kowalski Jaś: uwaga /);
+  assert.match(msg.payload.tekstUwagi, /^Kowalski Jaś: uwaga /);
   assert.equal(msg.payload.tekst, msg.payload.tekstUwagi);
 
   // tylko uwagi, a w Librusie pojawia się nowa ocena: jest w „nowe”, ale bez tekstu
