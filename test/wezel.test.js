@@ -158,6 +158,56 @@ test('węzeł: zestawienie ocen przedmiotu i uwagi nauczyciela', async (t) => {
     'Librus Kowalski Jaś: 5[2](2) z Matematyka (Kartkówka) | oceny: 5[2](2), 4+(1)',
   );
   assert.equal(msg.payload.tekst.split('\n').at(-1), 'Librus Kowalski Jaś: uwaga negatywna – Brak zadania domowego (Testowa Anna)');
+  // osobno: tekst ocen i tekst uwag
+  assert.equal(msg.payload.tekstOceny, 'Librus Kowalski Jaś: 5[2](2) z Matematyka (Kartkówka) | oceny: 5[2](2), 4+(1)');
+  assert.equal(msg.payload.tekstUwagi, 'Librus Kowalski Jaś: uwaga negatywna – Brak zadania domowego (Testowa Anna)');
+  assert.equal(msg.payload.tekst, msg.payload.tekstOceny + '\n' + msg.payload.tekstUwagi);
+});
+
+test('węzeł: checkboxy – tylko oceny, tylko uwagi; starszy węzeł bez pola „oceny”', async (t) => {
+  const prawdziwyFetch = globalThis.fetch;
+  t.after(() => (globalThis.fetch = prawdziwyFetch));
+  globalThis.fetch = atrapaLibrusa().fetch;
+
+  // starszy węzeł (brak pola „oceny”) – informacja o ocenach jak dotąd włączona, uwag nie czyta
+  let { node } = uruchomWezel();
+  await node.wyslij({});
+  let msg = await node.wyslij({ test: true });
+  assert.equal(msg.payload.nowe.length, 1);
+  assert.match(msg.payload.tekstOceny, /^Librus Kowalski Jaś: 6\(2\) z Język polski/);
+  assert.equal(msg.payload.tekstUwagi, '');
+  assert.equal(msg.payload.tekst, msg.payload.tekstOceny);
+  assert.equal(msg.payload.uwagi, undefined);
+
+  // tylko uwagi: test SMS podaje najnowszą uwagę, bez oceny
+  ({ node } = uruchomWezel({ config: { oceny: false, uwagi: true } }));
+  await node.wyslij({});
+  msg = await node.wyslij({ test: true });
+  assert.equal(msg.payload.tekstOceny, '');
+  assert.equal(msg.payload.noweUwagi.length, 1);
+  assert.match(msg.payload.tekstUwagi, /^Librus Kowalski Jaś: uwaga /);
+  assert.equal(msg.payload.tekst, msg.payload.tekstUwagi);
+
+  // tylko uwagi, a w Librusie pojawia się nowa ocena: jest w „nowe”, ale bez tekstu
+  const nowaOcena =
+    '<span class="grade-box"><a class="ocena" href="/przegladaj_oceny/szczegoly/5200" title="Kategoria: Kartkówka&lt;br&gt;Data: 2027-03-10 (śr.)&lt;br&gt;Nauczyciel: Testowa Anna&lt;br&gt;Licz do średniej: tak&lt;br&gt;Waga: 2&lt;br&gt;Dodał: Testowa Anna&lt;br/&gt;&lt;br/&gt;Komentarz: Ułamki">2</a></span>';
+  const html = HTML_OCENY.replace('<span class="grade-box"><a class="ocena" href="/przegladaj_oceny/szczegoly/5007"', nowaOcena + '<span class="grade-box"><a class="ocena" href="/przegladaj_oceny/szczegoly/5007"');
+  const atrapa = atrapaLibrusa().fetch;
+  globalThis.fetch = async (url, o) =>
+    new URL(url).pathname === '/przegladaj_oceny/uczen' ? new Response(html) : atrapa(url, o);
+  msg = await node.wyslij({});
+  assert.equal(msg.payload.nowe.length, 1);
+  assert.equal(msg.payload.tekstOceny, '');
+  assert.equal(msg.payload.tekstUwagi, '');
+  assert.equal(msg.payload.tekst, '');
+
+  // oba wyłączone – nigdy żadnego tekstu
+  globalThis.fetch = atrapaLibrusa().fetch;
+  ({ node } = uruchomWezel({ config: { oceny: false, uwagi: false } }));
+  await node.wyslij({});
+  msg = await node.wyslij({ test: true });
+  assert.equal(msg.payload.tekst, '');
+  assert.equal(msg.payload.tekstOceny + msg.payload.tekstUwagi, '');
 });
 
 test('węzeł: ostatni wynik w zmiennej kontekstu (global / flow / magazyn)', async (t) => {

@@ -1,3 +1,13 @@
+1.3.0 (2026-11-28):
+- Separate texts: payload.tekstOceny (new grades) and payload.tekstUwagi (new notes), each with its own template;
+  payload.tekst still holds both together (grades, then notes) – existing flows keep working
+- Edit dialog: "New grade" and "New note" sections, each with its own checkbox on top –
+  "Send info about a new grade" (new, on by default; older nodes stay on) and "Send info about a new note"
+  (was "Also read teacher notes", same setting); "Without Polish letters" applies to both texts
+- msg.test reports only the kinds that are switched on
+- Grades page: a small date (month.day, without the year) under every grade – no need to hover;
+  hover / tap still shows the full details
+
 1.2.0 (2026-11-25):
 - Grades page: access token – the link ...?token=... opens the page without logging in (smart mirror,
   wall tablet); "Generate" and "Copy" buttons in the edit dialog; the token works with or without a password

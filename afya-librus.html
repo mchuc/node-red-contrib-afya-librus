@@ -45,10 +45,11 @@
       inputs: 1,
       outputs: 1,
       inputLabels: 'check now (e.g. inject every 1 h); msg.test = true',
-      outputLabels: 'msg.payload = { ok, nowe, tekst, oceny, … }',
+      outputLabels: 'msg.payload = { ok, nowe, tekst, tekstOceny, tekstUwagi, oceny, … }',
       defaults: {
         name: { value: '' },
         szablon: { value: '' },
+        oceny: { value: true },
         bezPl: { value: false },
         zTablica: { value: false },
         uwagi: { value: false },
@@ -81,6 +82,13 @@
         const variable = $('#node-input-variableName');
         variable.typedInput({ types: ['global', 'flow'], typeField: '#node-input-scope' });
 
+        // starsze węzły nie mają pola „oceny” – informacja o ocenach była zawsze włączona
+        if (this.oceny === undefined) $('#node-input-oceny').prop('checked', true);
+        $('#node-input-oceny')
+          .on('change', function () {
+            $('.afya-librus-grades').toggle(this.checked);
+          })
+          .trigger('change');
         $('#node-input-uwagi')
           .on('change', function () {
             $('.afya-librus-notes').toggle(this.checked);
@@ -123,12 +131,20 @@
         odswiezStrone();
 
         const summary = function () {
-          let grade = $('#node-input-szablon').val() || DEFAULT_GRADE;
-          if ($('#node-input-zTablica').is(':checked')) grade += ' | oceny: %tablica%';
-          let text = '<b>SMS line per new grade:</b><br><code>' + esc(grade) + '</code>';
-          if ($('#node-input-uwagi').is(':checked')) {
-            text += '<br><b>SMS line per new note:</b><br><code>' + esc($('#node-input-szablonUwagi').val() || DEFAULT_NOTE) + '</code>';
+          let text = '';
+          if ($('#node-input-oceny').is(':checked')) {
+            let grade = $('#node-input-szablon').val() || DEFAULT_GRADE;
+            if ($('#node-input-zTablica').is(':checked')) grade += ' | oceny: %tablica%';
+            text += '<b>New grade</b> → <code>payload.tekstOceny</code>:<br><code>' + esc(grade) + '</code>';
+          } else {
+            text += 'New grades: <b>no info</b> (still listed in <code>payload.nowe</code>).';
           }
+          if ($('#node-input-uwagi').is(':checked')) {
+            text += '<br><b>New note</b> → <code>payload.tekstUwagi</code>:<br><code>' + esc($('#node-input-szablonUwagi').val() || DEFAULT_NOTE) + '</code>';
+          } else {
+            text += '<br>New notes: <b>no info</b> (notes are not read).';
+          }
+          text += '<br>Both together: <code>payload.tekst</code>.';
           if ($('#node-input-bezPl').is(':checked')) text += '<br>Polish letters are replaced (ą → a …).';
           if ($('#node-input-strona').is(':checked')) {
             const zHaslem = !!$('#node-input-hasloStrony').val();
@@ -144,7 +160,7 @@
           $('#afya-librus-summary').html(text);
         };
         $('#node-input-szablon, #node-input-szablonUwagi').on('change keyup', summary);
-        $('#node-input-zTablica, #node-input-uwagi, #node-input-bezPl, #node-input-strona').on('change', summary);
+        $('#node-input-oceny, #node-input-zTablica, #node-input-uwagi, #node-input-bezPl, #node-input-strona').on('change', summary);
         $('#node-input-sciezka, #node-input-tokenStrony, #node-input-hasloStrony').on('change keyup', summary);
         variable.on('change', summary);
         summary();
@@ -171,34 +187,45 @@
     </div>
     <div class="afya-hint">Stored as Node-RED credentials – never exported with the flow.</div>
 
-    <div class="afya-section"><i class="fa fa-commenting"></i> SMS text</div>
-    <div class="form-row">
-      <label for="node-input-szablon"><i class="fa fa-star-half-o"></i> New grade</label>
+    <div class="afya-section"><i class="fa fa-star-half-o"></i> New grade</div>
+    <div class="afya-check">
+      <input type="checkbox" id="node-input-oceny">
+      <label for="node-input-oceny">Send info about a new grade</label>
+    </div>
+    <div class="form-row afya-librus-grades">
+      <label for="node-input-szablon"><i class="fa fa-commenting"></i> Text</label>
       <input type="text" id="node-input-szablon" placeholder="Librus %uczen%: %zapis% z %przedmiot% (%kategoria%) %komentarz%" style="width: 65%;">
     </div>
-    <div class="afya-check">
+    <div class="afya-check afya-librus-grades">
       <input type="checkbox" id="node-input-zTablica">
       <label for="node-input-zTablica">Append all grades of the subject, e.g. <code>| oceny: 5(1), 6(3), 4[1](2)</code></label>
     </div>
+    <div class="afya-hint afya-librus-grades">
+      <code>%zapis%</code> <code>%ocena%</code> <code>%przedmiot%</code> <code>%kategoria%</code>
+      <code>%komentarz%</code> <code>%waga%</code> <code>%data%</code> <code>%nauczyciel%</code> <code>%srednia%</code>
+      <code>%tablica%</code> <code>%semestr%</code> <code>%uczen%</code> · output: <code>payload.tekstOceny</code>
+    </div>
+
+    <div class="afya-section"><i class="fa fa-exclamation-circle"></i> New note</div>
+    <div class="afya-check">
+      <input type="checkbox" id="node-input-uwagi">
+      <label for="node-input-uwagi">Send info about a new note (<i>uwaga</i>)</label>
+    </div>
+    <div class="form-row afya-librus-notes">
+      <label for="node-input-szablonUwagi"><i class="fa fa-commenting"></i> Text</label>
+      <input type="text" id="node-input-szablonUwagi" placeholder="Librus %uczen%: uwaga %rodzaj% – %tresc% (%nauczyciel%)" style="width: 65%;">
+    </div>
+    <div class="afya-hint afya-librus-notes">
+      <code>%tresc%</code> <code>%rodzaj%</code> <code>%kategoria%</code> <code>%nauczyciel%</code>
+      <code>%data%</code> <code>%uczen%</code> · output: <code>payload.tekstUwagi</code>
+    </div>
+
+    <div class="afya-section"><i class="fa fa-mobile"></i> SMS</div>
     <div class="afya-check">
       <input type="checkbox" id="node-input-bezPl">
       <label for="node-input-bezPl">Without Polish letters (160 instead of 70 characters per SMS)</label>
     </div>
-    <div class="afya-check">
-      <input type="checkbox" id="node-input-uwagi">
-      <label for="node-input-uwagi">Also read teacher notes (<i>uwagi</i>)</label>
-    </div>
-    <div class="form-row afya-librus-notes">
-      <label for="node-input-szablonUwagi"><i class="fa fa-exclamation-circle"></i> New note</label>
-      <input type="text" id="node-input-szablonUwagi" placeholder="Librus %uczen%: uwaga %rodzaj% – %tresc% (%nauczyciel%)" style="width: 65%;">
-    </div>
-    <div class="afya-hint">
-      <b>Grade:</b> <code>%zapis%</code> <code>%ocena%</code> <code>%przedmiot%</code> <code>%kategoria%</code>
-      <code>%komentarz%</code> <code>%waga%</code> <code>%data%</code> <code>%nauczyciel%</code> <code>%srednia%</code>
-      <code>%tablica%</code> <code>%semestr%</code> <code>%uczen%</code><br>
-      <b>Note:</b> <code>%tresc%</code> <code>%rodzaj%</code> <code>%kategoria%</code> <code>%nauczyciel%</code>
-      <code>%data%</code> <code>%uczen%</code>
-    </div>
+    <div class="afya-hint">Both texts together, one line each: <code>payload.tekst</code> – empty when nothing is new.</div>
 
     <div class="afya-section"><i class="fa fa-table"></i> Grades page</div>
     <div class="afya-check">
@@ -251,7 +278,8 @@
   <p>Every message starts one check – connect an <i>inject</i> repeated every hour.</p>
   <dl class="message-properties">
     <dt class="optional">test <span class="property-type">boolean</span></dt>
-    <dd><code>true</code> – when nothing is new, the latest grade (and note) is reported as new, to test the SMS path.</dd>
+    <dd><code>true</code> – when nothing is new, the latest grade (and note) is reported as new, to test the SMS path
+      (only the kinds that are switched on).</dd>
   </dl>
 
   <h3>Outputs</h3>
@@ -259,9 +287,16 @@
     <dt>payload.ok <span class="property-type">boolean</span></dt>
     <dd><code>true</code> – read successfully, <code>false</code> – error (description in <code>payload.blad</code>).</dd>
     <dt>payload.nowe <span class="property-type">array</span></dt>
-    <dd>Grades that were not there at the previous check (with the subject average in <code>srednia</code>).</dd>
+    <dd>Grades that were not there at the previous check (with the subject average in <code>srednia</code>) –
+      also when <i>Send info about a new grade</i> is off.</dd>
+    <dt>payload.tekstOceny <span class="property-type">string</span></dt>
+    <dd>Ready SMS text about new grades (template <i>New grade</i>), one line per grade; empty when nothing is new
+      or <i>Send info about a new grade</i> is off.</dd>
+    <dt>payload.tekstUwagi <span class="property-type">string</span></dt>
+    <dd>Ready SMS text about new notes (template <i>New note</i>), one line per note; empty when nothing is new
+      or <i>Send info about a new note</i> is off.</dd>
     <dt>payload.tekst <span class="property-type">string</span></dt>
-    <dd>Ready SMS text – one line per new grade or note; empty when nothing is new.</dd>
+    <dd>Both texts together (grades first, then notes); empty when nothing is new.</dd>
     <dt>payload.oceny <span class="property-type">array</span></dt>
     <dd>All grades: <code>przedmiot, ocena, zapis, wartosc, kategoria, komentarz, data, nauczyciel, waga, liczy,
       semestr, typ, link, id</code>. <code>typ</code>: <code>biezaca</code> (regular) or <code>koncowa</code>
@@ -276,7 +311,7 @@
     <dt>payload.srednieLibrus <span class="property-type">object</span></dt>
     <dd>Only the averages Librus itself shows (columns Śr.I / Śr.II / Śr.R).</dd>
     <dt class="optional">payload.uwagi, payload.noweUwagi <span class="property-type">array</span></dt>
-    <dd>Only with <i>Also read teacher notes</i>: <code>tresc, data, nauczyciel, rodzaj, kategoria, id</code>.</dd>
+    <dd>Only with <i>Send info about a new note</i>: <code>tresc, data, nauczyciel, rodzaj, kategoria, id</code>.</dd>
     <dt>payload.uczen, payload.klasa <span class="property-type">string</span></dt>
     <dd>Student and class.</dd>
     <dt>payload.pierwszyOdczyt <span class="property-type">boolean</span></dt>
@@ -299,14 +334,18 @@
 
   <h3>Details</h3>
   <p>Seen grades are saved in <code>~/.node-red/afya-librus/</code>, so a restart does not cause duplicate SMS.
-    Pass only messages with a non-empty <code>payload.tekst</code> to the SMS gateway (<i>switch</i>, “is not empty”).
+    Pass only messages with a non-empty <code>payload.tekst</code> to the SMS gateway (<i>switch</i>, “is not empty”) –
+    or use <code>payload.tekstOceny</code> and <code>payload.tekstUwagi</code> to send grades and notes separately
+    (e.g. to different people).
     With a <i>variable</i> set, the last <code>msg.payload</code> is also kept in a <b>global</b> or <b>flow</b>
     context variable.</p>
   <p>Ready flows: <b>Menu → Import → Examples → node-red-contrib-afya-librus</b>.</p>
 
   <h3>Polski</h3>
   <p>Loguje się do Librusa Synergia, czyta oceny (opcjonalnie uwagi) i podaje, co nowego i za co. Gotowy tekst
-    SMS jest w <code>payload.tekst</code> (pusty, gdy nic nowego). <code>msg.test = true</code> – test SMS.
+    SMS: oceny w <code>payload.tekstOceny</code>, uwagi w <code>payload.tekstUwagi</code>, oba razem w
+    <code>payload.tekst</code> (puste, gdy nic nowego). Checkboxy <i>Send info about a new grade</i> i
+    <i>Send info about a new note</i> włączają każdy z tekstów. <code>msg.test = true</code> – test SMS.
     Pierwszy odczyt tylko zapamiętuje oceny. Opcjonalnie ostatni wynik trafia do zmiennej <b>global</b> lub
     <b>flow</b>.</p>
   <p><b>Strona z ocenami</b> – po włączeniu węzeł pokazuje stronę pod podaną ścieżką (np. <code>/librus/jas</code>):

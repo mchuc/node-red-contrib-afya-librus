@@ -98,6 +98,8 @@ test('strona: przedmioty alfabetycznie, średnia zaraz po nazwie, data w podpowi
   assert.match(okres1, /<b>Matematyka<\/b><span class="sr v-b" title="[^"]*wyliczona[^"]*">4,07\*<\/span>/);
   // ocena z wagą, poprawa w nawiasie, data w podpowiedzi
   assert.match(okres1, />4<s>\[1\]<\/s><sub>2<\/sub><span class="t"><b>17\.11\.2026<\/b>/);
+  // mała data pod oceną (MM.DD, bez roku) – widoczna bez najeżdżania
+  assert.match(okres1, />4<s>\[1\]<\/s><sub>2<\/sub><span class="t">.*?<\/span><\/span><small>11\.17<\/small><\/span>/);
   // „+” nie liczy się do średniej, ocena przewidywana osobno (pełna ramka)
   assert.match(okres1, /class="g v-x nl"[^>]*>\+/);
   assert.match(okres1, /class="g v-b k"[^>]*>4<span class="t"><b>08\.01\.2027<\/b><br>przewidywana śródroczna/);

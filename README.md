@@ -45,11 +45,12 @@ Restart Node-RED. The node **librus grades** appears in the **AFYA** palette gro
 | Field | Description |
 |---|---|
 | Login, Password | Parent or student account. Stored as Node-RED *credentials*, never exported with the flow. |
-| New grade | SMS line template for a new grade. Default: `Librus %uczen%: %zapis% z %przedmiot% (%kategoria%) %komentarz%` |
+| Send info about a new grade | On (default): new grades get a text in `payload.tekstOceny`. Off: no grade text (the grades are still in `payload.nowe`). |
+| New grade · Text | SMS line template for a new grade. Default: `Librus %uczen%: %zapis% z %przedmiot% (%kategoria%) %komentarz%` |
 | Append all grades of the subject | Adds `\| oceny: 5(3), 3-(2), 4[1](2)` (current semester of the subject) to each grade line. |
-| Without Polish letters | Replaces ą→a, ł→l …, so one SMS holds 160 instead of 70 characters. |
-| Also read teacher notes | Reads the “Uwagi” page and reports new notes. |
-| New note | SMS line template for a new note. Default: `Librus %uczen%: uwaga %rodzaj% – %tresc% (%nauczyciel%)` |
+| Send info about a new note | Reads the “Uwagi” page; new notes get a text in `payload.tekstUwagi`. |
+| New note · Text | SMS line template for a new note. Default: `Librus %uczen%: uwaga %rodzaj% – %tresc% (%nauczyciel%)` |
+| Without Polish letters | Replaces ą→a, ł→l … in both texts, so one SMS holds 160 instead of 70 characters. |
 | Variable | Optional: the last `msg.payload` is also stored in a **global** (readable from any flow) or **flow** context variable, e.g. `global.get("librus_john")`. |
 | Show a web page with the grades | Turns on the grades page (see below). |
 | Page path | Address of the page, e.g. `librus/john` → `http://<node-red>:1880/librus/john`. One path per child. |
@@ -81,8 +82,8 @@ Each node can serve its own web page with the grades – one node, path and pass
 
 * student and class at the top, tabs **Term 1 / Term 2 / Whole year** (the current term opens first),
 * subjects in alphabetical order, the **weighted average right after the subject name**,
-* the grades in order, coloured by value, with the weight as a small number – **hover or tap a grade** to see
-  the date, category, weight, teacher and comment,
+* the grades in order, coloured by value, with the weight as a small number and a **small date under each grade**
+  (month.day, e.g. `11.17`) – **hover or tap a grade** to see the full date, category, weight, teacher and comment,
 * dashed frame – the grade does not count to the average; solid frame – predicted / term / final grade,
 * works on a phone and in dark mode, refreshes itself every 15 minutes.
 
@@ -112,20 +113,22 @@ Field names are Polish (unchanged since 1.0):
 |---|---|
 | `ok` | `true` – read successfully; on error `{ ok: false, czas, blad }` (`blad` = error text) |
 | `nowe` | grades that were not there at the previous check (with subject average `srednia` and `tablica`) |
-| `tekst` | ready SMS text, one line per new grade / note; empty when nothing is new |
+| `tekstOceny` | ready SMS text about new grades (template *New grade*), one line each; empty when nothing is new or *Send info about a new grade* is off |
+| `tekstUwagi` | ready SMS text about new notes (template *New note*), one line each; empty when nothing is new or *Send info about a new note* is off |
+| `tekst` | both texts together (grades, then notes); empty when nothing is new |
 | `oceny` | all grades: `przedmiot` (subject), `ocena` (grade), `zapis` (as in the register), `przed` (before improvement), `wartosc` (numeric value), `kategoria`, `komentarz`, `data`, `nauczyciel` (teacher), `waga` (weight), `liczy` (counts to average), `semestr`, `typ` (`biezaca` regular / `koncowa` predicted, semester or final), `zastapiona` (old, improved grade), `link`, `id` |
 | `srednie` | weighted averages per term and year: `{ "Matematyka": { "1": 4.07, "2": 4.5, "R": 4.13 } }` – from Librus (Śr.I / Śr.II / Śr.R) or calculated from the Librus weights where the school hides them |
 | `srednieLibrus` | only the averages Librus itself shows |
 | `tablica` | all regular grades of a subject in one string, per semester |
-| `uwagi`, `noweUwagi` | teacher notes (only with *Also read teacher notes*): `tresc`, `data`, `nauczyciel`, `rodzaj`, `kategoria`, `id` |
+| `uwagi`, `noweUwagi` | teacher notes (only with *Send info about a new note*): `tresc`, `data`, `nauczyciel`, `rodzaj`, `kategoria`, `id` |
 | `uczen`, `klasa` | student and class |
 | `pierwszyOdczyt` | `true` on the very first check – grades are only remembered |
 | `czas` | time of the check (ISO) |
 
 ### SMS test
 
-Send `msg.test = true`. When nothing is new, the latest grade (and note) is reported as new, so you can check
-the whole SMS path at once. The example flows have a separate *inject* for it.
+Send `msg.test = true`. When nothing is new, the latest grade (and note) is reported as new – only the kinds
+that are switched on – so you can check the whole SMS path at once. The example flows have a separate *inject* for it.
 
 ### How new grades are detected
 
@@ -197,11 +200,12 @@ Potem zrestartuj Node-RED. Węzeł **librus grades** pojawi się w palecie, w gr
 | Pole | Opis |
 |---|---|
 | Login, Password | Konto rodzica lub ucznia w Librusie. Zapisywane jako *credentials* Node-RED, więc nie trafiają do eksportu flow. |
-| New grade | Szablon linii SMS o nowej ocenie. Domyślnie: `Librus %uczen%: %zapis% z %przedmiot% (%kategoria%) %komentarz%` |
-| Without Polish letters | Zamienia ą→a, ł→l itd., więc SMS mieści 160 znaków zamiast 70. |
+| Send info about a new grade | Włączone (domyślnie): nowe oceny dostają tekst w `payload.tekstOceny`. Wyłączone: bez tekstu o ocenach (oceny nadal są w `payload.nowe`). |
+| New grade · Text | Szablon linii SMS o nowej ocenie. Domyślnie: `Librus %uczen%: %zapis% z %przedmiot% (%kategoria%) %komentarz%` |
 | Append all grades of the subject | Do każdej linii o ocenie dopisuje `\| oceny: 5(3), 3-(2), 4[1](2)` (bieżący semestr tego przedmiotu). |
-| Also read teacher notes | Czyta stronę „Uwagi” i zgłasza nowe uwagi. |
-| New note | Szablon linii SMS o nowej uwadze. Domyślnie: `Librus %uczen%: uwaga %rodzaj% – %tresc% (%nauczyciel%)` |
+| Send info about a new note | Czyta stronę „Uwagi”; nowe uwagi dostają tekst w `payload.tekstUwagi`. |
+| New note · Text | Szablon linii SMS o nowej uwadze. Domyślnie: `Librus %uczen%: uwaga %rodzaj% – %tresc% (%nauczyciel%)` |
+| Without Polish letters | Zamienia ą→a, ł→l itd. w obu tekstach, więc SMS mieści 160 znaków zamiast 70. |
 | Variable | Opcjonalnie: ostatni `msg.payload` trafia też do zmiennej **global** (dostępna z każdego flow) lub **flow**, np. `global.get("librus_jas")`. |
 | Show a web page with the grades | Włącza stronę z ocenami (opis niżej). |
 | Page path | Adres strony, np. `librus/jas` → `http://<node-red>:1880/librus/jas`. Każde dziecko – osobna ścieżka. |
@@ -268,8 +272,8 @@ Każdy węzeł może pokazywać własną stronę z ocenami – osobny węzeł, �
 
 * na górze uczeń i klasa, zakładki **Okres 1 / Okres 2 / Cały rok** (otwiera się bieżący okres),
 * przedmioty alfabetycznie, **średnia ważona zaraz po nazwie przedmiotu**,
-* kolejne oceny w kolorach wg wartości, waga jako mała liczba – **po najechaniu albo dotknięciu** widać datę,
-  kategorię, wagę, nauczyciela i komentarz,
+* kolejne oceny w kolorach wg wartości, waga jako mała liczba, a **pod każdą oceną mała data** (miesiąc.dzień,
+  np. `11.17`) – **po najechaniu albo dotknięciu** widać pełną datę, kategorię, wagę, nauczyciela i komentarz,
 * ramka przerywana – ocena nie liczy się do średniej; pełna ramka – ocena przewidywana, śródroczna lub roczna,
 * działa na telefonie i w trybie ciemnym, sama odświeża się co 15 minut.
 
@@ -321,6 +325,8 @@ Ostatni wynik leży w `~/.node-red/afya-librus/<id-węzła>.json`, więc strona 
     }
   ],
   "tekst": "Librus Kowalski Jaś: 4[1](2) z Matematyka (Kartkówka) | oceny: 5(3), 3-(2), +, 4[1](2)",
+  "tekstOceny": "Librus Kowalski Jaś: 4[1](2) z Matematyka (Kartkówka) | oceny: 5(3), 3-(2), +, 4[1](2)",
+  "tekstUwagi": "",
   "pierwszyOdczyt": false,
   "oceny": [ "… wszystkie oceny w tym samym formacie …" ],
   "srednie": { "Matematyka": { "1": 4.07, "2": 4.5 } },
@@ -341,7 +347,12 @@ Ostatni wynik leży w `~/.node-red/afya-librus/<id-węzła>.json`, więc strona 
 
 * `ok`: `true`, gdy odczyt się udał. Przy błędzie dostajesz `{ "ok": false, "czas": "…", "blad": "opis" }`.
 * `nowe`: oceny, których nie było przy poprzednim sprawdzeniu.
-* `tekst`: gotowy SMS, jedna linia na każdą nową ocenę i uwagę. Pusty, gdy nic nowego.
+* `tekstOceny`: gotowy SMS o nowych ocenach (szablon *New grade*), jedna linia na ocenę. Pusty, gdy nic nowego
+  albo gdy *Send info about a new grade* jest wyłączone.
+* `tekstUwagi`: gotowy SMS o nowych uwagach (szablon *New note*), jedna linia na uwagę. Pusty, gdy nic nowego
+  albo gdy *Send info about a new note* jest wyłączone.
+* `tekst`: oba teksty razem (najpierw oceny, potem uwagi). Pusty, gdy nic nowego. Oceny i uwagi możesz też
+  wysyłać osobno, np. do różnych osób – wtedy użyj `tekstOceny` i `tekstUwagi`.
 * `zapis`: ocena jak w dzienniku, np. `5(3)`, `4[1](2)` albo `+`.
 * `przed`: ocena sprzed poprawy. `zastapiona: true` oznacza starą ocenę, którą uczeń poprawił.
   Taka ocena nie trafia do `nowe` ani do `tablica`, widać ją tylko w nawiasie.
@@ -349,7 +360,7 @@ Ostatni wynik leży w `~/.node-red/afya-librus/<id-węzła>.json`, więc strona 
 * `srednie`: średnie ważone dla okresów i roku (`1`, `2`, `R`) – z Librusa (Śr.I / Śr.II / Śr.R), a gdy szkoła
   je ukrywa, wyliczone z wag Librusa. `srednieLibrus` – tylko te, które pokazuje sam Librus.
 * `tablica`: wszystkie oceny bieżące przedmiotu w jednym napisie, osobno dla każdego semestru.
-* `uwagi`, `noweUwagi`: pojawiają się tylko wtedy, gdy włączona jest opcja „Also read teacher notes”.
+* `uwagi`, `noweUwagi`: pojawiają się tylko wtedy, gdy włączona jest opcja „Send info about a new note”.
 
 #### Test SMS
 

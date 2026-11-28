@@ -31,6 +31,9 @@ module.exports = function (RED) {
     RED.nodes.createNode(this, config);
     const node = this;
     const bezPl = !!config.bezPl;
+    // „Send info about a new grade” – starsze węzły nie mają tego pola, więc domyślnie włączone
+    const wysylajOceny = config.oceny !== false;
+    // „Send info about a new note” – uwagi czytamy tylko wtedy, gdy trzeba o nich informować
     const czytajUwagi = !!config.uwagi;
     // „dopisz oceny z przedmiotu” → do każdej linii SMS: „| oceny: 5(3), 3-(2), 4[1](2)”
     const szablon = (config.szablon || DOMYSLNY_SZABLON) + (config.zTablica ? ' | oceny: %tablica%' : '');
@@ -96,7 +99,7 @@ module.exports = function (RED) {
         // ocena już zastąpiona poprawą nie idzie osobno – widać ją w nawiasie nowej, np. 5[2](2)
         let nowe = dane.oceny.filter((o) => !widziane.has(o.id) && !o.zastapiona);
         const biezace = dane.oceny.filter((o) => o.typ === 'biezaca' && !o.zastapiona);
-        if (msg.test && !nowe.length && biezace.length) nowe = [najnowszy(biezace)];
+        if (msg.test && wysylajOceny && !nowe.length && biezace.length) nowe = [najnowszy(biezace)];
         dane.oceny.forEach((o) => widziane.add(o.id));
 
         // Uwagi – osobna pamięć; włączenie opcji później też zaczyna od cichego odczytu
@@ -130,10 +133,9 @@ module.exports = function (RED) {
           return { ...o, srednia: sr === undefined ? null : sr, tablica: tab || '' };
         });
 
-        const linie = [
-          ...nowe.map((o) => tekstSms(szablon, o, dane.uczen, bezPl)),
-          ...noweUwagi.map((u) => tekstSms(szablonUwagi, u, dane.uczen, bezPl)),
-        ];
+        // osobny tekst ocen i osobny tekst uwag (inny szablon) + oba razem w „tekst”
+        const tekstOceny = wysylajOceny ? nowe.map((o) => tekstSms(szablon, o, dane.uczen, bezPl)).join('\n') : '';
+        const tekstUwagi = noweUwagi.map((u) => tekstSms(szablonUwagi, u, dane.uczen, bezPl)).join('\n');
 
         msg.payload = {
           ok: true,
@@ -141,7 +143,9 @@ module.exports = function (RED) {
           uczen: dane.uczen,
           klasa: dane.klasa,
           nowe,
-          tekst: linie.join('\n'),
+          tekst: [tekstOceny, tekstUwagi].filter(Boolean).join('\n'),
+          tekstOceny,
+          tekstUwagi,
           pierwszyOdczyt,
           oceny: dane.oceny,
           srednie: dane.srednie,
