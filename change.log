@@ -1,4 +1,4 @@
-1.4.0 (2026-11-28):
+1.4.1 (2026-11-28):
 - Examples and README: MQTT topics afya/… instead of librus/… (afya/jas/dane, afya/dane, afya/sms/json, afya/sms/tekst)
 - Grades page: default path afya/oceny (was librus); help, README and examples use afya/<child>,
   e.g. afya/jas – existing nodes keep the path they have
